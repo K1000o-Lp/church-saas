@@ -8,7 +8,7 @@ Las capacidades, integraciones, límites y precios descritos aquí son objetivos
 
 ## Estado actual
 
-El scaffold Laravel 12 y el primer código de modelos, contexto de tenancy y migraciones ya están escritos. El esquema se ejecutó en un PostgreSQL local de desarrollo y las pruebas de esquema usan una base PostgreSQL separada. No hay frontend de producto, login/auth scaffold, runner de workflows, pagos ni integraciones productivas.
+El scaffold Laravel 12 y el primer código de modelos, contexto de tenancy y migraciones ya están escritos. El esquema se ejecutó en un PostgreSQL local de desarrollo y las pruebas de esquema usan una base PostgreSQL separada. Existe autenticación web por sesión con login/logout, selección de iglesia por membresía y resolución de tenant por petición; no hay frontend de producto, invitaciones, recuperación de contraseña, runner de workflows, pagos ni integraciones productivas.
 
 **PostgreSQL es obligatorio para validar el esquema.** JSONB, el índice GIN en `people.custom_fields`, el `CHECK` monetario y el trigger de inmutabilidad no existen en SQLite; no uses SQLite para ejecutar estas migraciones ni para pruebas de persistencia.
 

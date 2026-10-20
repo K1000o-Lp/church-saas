@@ -45,7 +45,7 @@ Este plan ordena el trabajo desde la validación del problema hasta una primera 
 **Depende de:** fase 1 para diseño. La fase 2 es precondición para validar persistencia e integración contra la base objetivo, no para diseñar ni escribir código/migraciones.
 
 **Trabajo y entregables:**
-- Completar autenticación, organizaciones/iglesias, invitaciones y membresías según decisiones aprobadas sobre el scaffold existente.
+- Autenticación web por sesión, dashboard, selección de iglesia y verificación de membresía por petición ya están implementados; quedan invitaciones, recuperación de contraseña, roles/permisos, políticas/gates y auditoría.
 - Extender la resolución de tenant por petición, contexto explícito en procesos asíncronos y autorización fail-closed.
 - Incorporar políticas/gates, auditoría para acciones sensibles y pruebas de aislamiento entre iglesias.
 
