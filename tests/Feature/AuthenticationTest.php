@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
@@ -20,7 +21,7 @@ class AuthenticationTest extends TestCase
     {
         $this->get('/login')
             ->assertOk()
-            ->assertSee('Iniciar sesión');
+            ->assertInertia(fn (Assert $page) => $page->component('auth/login'));
     }
 
     public function test_users_can_authenticate_with_valid_credentials(): void
@@ -84,7 +85,9 @@ class AuthenticationTest extends TestCase
         $this->actingAs($user)
             ->get('/dashboard')
             ->assertOk()
-            ->assertSee('No tienes membresías activas');
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('dashboard')
+                ->has('memberships', 0));
     }
 
     public function test_a_member_can_access_an_active_church(): void
@@ -96,7 +99,11 @@ class AuthenticationTest extends TestCase
         $this->actingAs($user)
             ->get(route('churches.show', $church))
             ->assertOk()
-            ->assertSee($church->name)
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('churches/show')
+                ->where('church.name', $church->name)
+                ->where('membership.role', 'admin')
+                ->where('currentChurch.role', 'admin'))
             ->assertSessionHas('current_church_id', $church->id);
     }
 
@@ -121,7 +128,7 @@ class AuthenticationTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_an_inactive_church_cannot_be_accessed(): void
+    public function test_an_inactive_church_shows_the_unavailable_page_to_members(): void
     {
         $user = $this->createUser();
         $church = $this->createChurch('iglesia-inactiva', 'inactive');
@@ -129,7 +136,10 @@ class AuthenticationTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('churches.show', $church))
-            ->assertNotFound();
+            ->assertStatus(403)
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('churches/unavailable')
+                ->where('status', 'inactive'));
     }
 
     public function test_church_routes_use_the_slug_as_the_key(): void
