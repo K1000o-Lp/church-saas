@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminSessionController;
 use App\Http\Controllers\Admin\ChurchController as AdminChurchController;
 use App\Http\Controllers\Admin\ChurchPlanController as AdminChurchPlanController;
+use App\Http\Controllers\Admin\InvoiceController as AdminInvoiceController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\ChurchController;
 use App\Http\Controllers\ChurchOnboardingController;
@@ -58,5 +59,11 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::put('/churches/{church}/plan/subscription', [AdminChurchPlanController::class, 'updateSubscription'])->name('churches.plan.subscription');
         Route::put('/churches/{church}/plan/limits', [AdminChurchPlanController::class, 'updateLimits'])->name('churches.plan.limits');
         Route::put('/churches/{church}/plan/features', [AdminChurchPlanController::class, 'updateFeatures'])->name('churches.plan.features');
+
+        Route::get('/invoices', [AdminInvoiceController::class, 'index'])->name('invoices.index');
+        Route::get('/churches/{church}/invoices', [AdminInvoiceController::class, 'forChurch'])->name('churches.invoices');
+        Route::post('/churches/{church}/invoices', [AdminInvoiceController::class, 'store'])->name('churches.invoices.store');
+        Route::put('/invoices/{invoice}/status', [AdminInvoiceController::class, 'updateStatus'])->name('invoices.status');
+        Route::post('/invoices/{invoice}/payments', [AdminInvoiceController::class, 'storePayment'])->name('invoices.payments.store');
     });
 });

@@ -21,6 +21,14 @@ final class PlatformAudit
 
     public const CHURCH_FEATURE_OVERRIDES_UPDATED = 'church.feature_overrides_updated';
 
+    public const CHURCH_PURGED = 'church.purged';
+
+    public const INVOICE_ISSUED = 'invoice.issued';
+
+    public const INVOICE_STATUS_CHANGED = 'invoice.status_changed';
+
+    public const PAYMENT_RECORDED = 'payment.recorded';
+
     /**
      * @param  array<string, mixed>  $metadata
      */
@@ -29,6 +37,33 @@ final class PlatformAudit
         string $action,
         ?Church $church = null,
         array $metadata = [],
+    ): PlatformAuditEntry {
+        return self::write($admin->getKey(), $action, $church, $metadata);
+    }
+
+    /**
+     * System actions (purge, console) have no platform admin actor but must
+     * still leave an audit trail. The church snapshot is written before the
+     * tenant row is deleted.
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    public static function recordSystem(
+        string $action,
+        ?Church $church = null,
+        array $metadata = [],
+    ): PlatformAuditEntry {
+        return self::write(null, $action, $church, $metadata);
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    private static function write(
+        int|string|null $platformAdminId,
+        string $action,
+        ?Church $church,
+        array $metadata,
     ): PlatformAuditEntry {
         $runningInConsole = app()->runningInConsole();
 
@@ -40,7 +75,7 @@ final class PlatformAudit
         }
 
         return PlatformAuditEntry::create([
-            'platform_admin_id' => $admin->getKey(),
+            'platform_admin_id' => $platformAdminId,
             'church_id' => $church?->getKey(),
             'action' => $action,
             'subject_type' => $church === null ? null : Church::class,

@@ -209,6 +209,13 @@ export default function AdminChurchShow({
     const actionLabels: Record<string, string> = {
         'church.updated': 'Datos actualizados',
         'church.status_changed': 'Estado cambiado',
+        'church.subscription_updated': 'Suscripción actualizada',
+        'church.limit_overrides_updated': 'Límites actualizados',
+        'church.feature_overrides_updated': 'Funciones actualizadas',
+        'church.purged': 'Iglesia purgada',
+        'invoice.issued': 'Factura emitida',
+        'invoice.status_changed': 'Estado de factura cambiado',
+        'payment.recorded': 'Pago registrado',
     };
 
     return (
@@ -233,6 +240,11 @@ export default function AdminChurchShow({
                     <p className="mt-1 text-sm text-muted-foreground">/{church.slug}</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <Button variant="outline" size="sm" asChild>
+                        <Link href={`/admin/churches/${church.slug}/invoices`}>
+                            Facturación
+                        </Link>
+                    </Button>
                     <Button variant="outline" size="sm" asChild>
                         <Link href={`/admin/churches/${church.slug}/plan`}>
                             Plan y límites

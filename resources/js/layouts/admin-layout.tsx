@@ -24,7 +24,7 @@ type AdminNavItem = {
 const navItems: AdminNavItem[] = [
     { label: 'Iglesias', href: '/admin/churches', icon: Building2 },
     { label: 'Planes', href: null, icon: Layers },
-    { label: 'Facturación', href: null, icon: CreditCard },
+    { label: 'Facturación', href: '/admin/invoices', icon: CreditCard },
     { label: 'Auditoría', href: null, icon: ScrollText },
 ];
 
