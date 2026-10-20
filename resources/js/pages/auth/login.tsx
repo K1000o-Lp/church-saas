@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { ArrowRight, LockKeyhole, ShieldCheck } from 'lucide-react';
 import type { FormEvent } from 'react';
 
@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { PageProps } from '@/types';
 
 export default function Login() {
+    const { flash } = usePage<PageProps>().props;
     const form = useForm({
         email: '',
         password: '',
@@ -88,6 +90,17 @@ export default function Login() {
                             Accede a la gestión de tus iglesias.
                         </p>
 
+                        {flash.success && (
+                            <p className="mt-6 rounded-lg border border-primary/25 bg-primary/10 px-3 py-2 text-sm font-medium text-primary">
+                                {flash.success}
+                            </p>
+                        )}
+                        {flash.error && (
+                            <p className="mt-6 rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
+                                {flash.error}
+                            </p>
+                        )}
+
                         <form className="mt-8 space-y-5" onSubmit={submit} noValidate>
                             <div className="space-y-2">
                                 <Label htmlFor="email">Correo electrónico</Label>
@@ -128,17 +141,28 @@ export default function Login() {
                                 )}
                             </div>
 
-                            <div className="flex items-center gap-2.5">
-                                <Checkbox
-                                    id="remember"
-                                    checked={form.data.remember}
-                                    onCheckedChange={(checked) =>
-                                        form.setData('remember', checked === true)
-                                    }
-                                />
-                                <Label htmlFor="remember" className="font-normal text-muted-foreground">
-                                    Recordarme en este dispositivo
-                                </Label>
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2.5">
+                                    <Checkbox
+                                        id="remember"
+                                        checked={form.data.remember}
+                                        onCheckedChange={(checked) =>
+                                            form.setData('remember', checked === true)
+                                        }
+                                    />
+                                    <Label
+                                        htmlFor="remember"
+                                        className="font-normal text-muted-foreground"
+                                    >
+                                        Recordarme en este dispositivo
+                                    </Label>
+                                </div>
+                                <Link
+                                    href="/forgot-password"
+                                    className="text-sm font-semibold text-primary hover:underline"
+                                >
+                                    ¿Olvidaste tu contraseña?
+                                </Link>
                             </div>
 
                             <Button type="submit" size="lg" className="w-full" disabled={form.processing}>
