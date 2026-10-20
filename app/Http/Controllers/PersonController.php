@@ -1,0 +1,316 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\StorePersonRequest;
+use App\Http\Requests\UpdatePersonRequest;
+use App\Models\Church;
+use App\Models\CustomFieldDefinition;
+use App\Models\Person;
+use App\Support\Audit\DomainAudit;
+use App\Support\People\CustomFieldRegistry;
+use App\Support\People\CustomFieldType;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class PersonController extends Controller
+{
+    public function index(Request $request, Church $church): Response
+    {
+        Gate::authorize('viewAny', Person::class);
+
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:80'],
+            'status' => ['nullable', 'string', Rule::in(['active', 'inactive', 'archived'])],
+        ]);
+
+        $search = trim((string) ($filters['search'] ?? ''));
+        $status = $filters['status'] ?? null;
+
+        $query = Person::query();
+
+        if ($search !== '') {
+            $like = '%'.Str::lower($search).'%';
+
+            $query->where(function ($query) use ($like): void {
+                $query->whereRaw('lower(first_name) like ?', [$like])
+                    ->orWhereRaw('lower(last_name) like ?', [$like])
+                    ->orWhereRaw('lower(email) like ?', [$like])
+                    ->orWhereRaw('lower(phone) like ?', [$like]);
+            });
+        }
+
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
+
+        $paginator = $query
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->paginate(20)
+            ->withQueryString();
+
+        return Inertia::render('people/index', [
+            'church' => [
+                'name' => $church->name,
+                'slug' => $church->slug,
+            ],
+            'people' => $paginator->getCollection()
+                ->map(fn (Person $person): array => $this->summary($person))
+                ->values(),
+            'filters' => [
+                'search' => $search,
+                'status' => $status ?? '',
+            ],
+            'statuses' => [
+                ['value' => 'active', 'label' => 'Activas'],
+                ['value' => 'inactive', 'label' => 'Inactivas'],
+                ['value' => 'archived', 'label' => 'Archivadas'],
+            ],
+            'pagination' => [
+                'currentPage' => $paginator->currentPage(),
+                'lastPage' => $paginator->lastPage(),
+                'perPage' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'previousPageUrl' => $paginator->previousPageUrl(),
+                'nextPageUrl' => $paginator->nextPageUrl(),
+            ],
+            'canCreate' => Gate::allows('create', Person::class),
+            'canArchive' => Gate::allows('archiveAny', Person::class),
+        ]);
+    }
+
+    public function create(Church $church): Response
+    {
+        Gate::authorize('create', Person::class);
+
+        return Inertia::render('people/create', [
+            'church' => [
+                'name' => $church->name,
+                'slug' => $church->slug,
+            ],
+            'definitions' => $this->definitions(CustomFieldRegistry::activeFor($church)),
+        ]);
+    }
+
+    public function store(StorePersonRequest $request, Church $church): RedirectResponse
+    {
+        Gate::authorize('create', Person::class);
+
+        $data = $request->validated();
+        $definitions = CustomFieldRegistry::activeFor($church);
+
+        $person = Person::create([
+            'first_name' => $data['first_name'],
+            'last_name' => $data['last_name'] ?? null,
+            'email' => $data['email'] ?? null,
+            'phone' => $data['phone'] ?? null,
+            'status' => 'active',
+            'custom_fields' => $this->customFieldsPayload(
+                CustomFieldRegistry::normalize($definitions, $data['custom_fields'] ?? []),
+            ),
+        ]);
+
+        DomainAudit::record(DomainAudit::PERSON_CREATED, $person, [
+            'firstName' => $person->first_name,
+            'lastName' => $person->last_name,
+        ]);
+
+        return redirect()
+            ->route('people.show', ['church' => $church, 'person' => $person->getKey()])
+            ->with('success', 'Persona creada.');
+    }
+
+    public function show(Church $church, string $person): Response
+    {
+        $record = $this->findPerson($person);
+
+        Gate::authorize('view', $record);
+
+        return Inertia::render('people/show', [
+            'church' => [
+                'name' => $church->name,
+                'slug' => $church->slug,
+            ],
+            'person' => $this->summary($record, detailed: true),
+            'customFields' => $this->customFieldValues(
+                $record,
+                CustomFieldRegistry::allFor($church),
+            ),
+            'canUpdate' => Gate::allows('update', $record),
+            'canArchive' => Gate::allows('archive', $record),
+        ]);
+    }
+
+    public function edit(Church $church, string $person): Response
+    {
+        $record = $this->findPerson($person);
+
+        Gate::authorize('update', $record);
+
+        $definitions = CustomFieldRegistry::activeFor($church);
+
+        return Inertia::render('people/edit', [
+            'church' => [
+                'name' => $church->name,
+                'slug' => $church->slug,
+            ],
+            'person' => $this->summary($record, detailed: true),
+            'definitions' => $this->definitions($definitions),
+            'values' => $record->custom_fields ?? [],
+        ]);
+    }
+
+    public function update(
+        UpdatePersonRequest $request,
+        Church $church,
+        string $person,
+    ): RedirectResponse {
+        $record = $this->findPerson($person);
+
+        Gate::authorize('update', $record);
+
+        $data = $request->validated();
+        $definitions = CustomFieldRegistry::activeFor($church);
+
+        $record->fill([
+            'first_name' => $data['first_name'],
+            'last_name' => $data['last_name'] ?? null,
+            'email' => $data['email'] ?? null,
+            'phone' => $data['phone'] ?? null,
+            'custom_fields' => $this->customFieldsPayload(
+                CustomFieldRegistry::normalize(
+                    $definitions,
+                    $data['custom_fields'] ?? [],
+                    $record->custom_fields ?? [],
+                ),
+            ),
+        ]);
+
+        $changed = array_keys($record->getDirty());
+        $record->save();
+
+        DomainAudit::record(DomainAudit::PERSON_UPDATED, $record, [
+            'changed' => $changed,
+        ]);
+
+        return redirect()
+            ->route('people.show', ['church' => $church, 'person' => $record->getKey()])
+            ->with('success', 'Persona actualizada.');
+    }
+
+    public function archive(Church $church, string $person): RedirectResponse
+    {
+        $record = $this->findPerson($person);
+
+        Gate::authorize('archive', $record);
+
+        if ($record->status !== 'archived') {
+            $record->update(['status' => 'archived']);
+            DomainAudit::record(DomainAudit::PERSON_ARCHIVED, $record, [
+                'status' => 'archived',
+            ]);
+        }
+
+        return back()->with('success', 'Persona archivada.');
+    }
+
+    public function restore(Church $church, string $person): RedirectResponse
+    {
+        $record = $this->findPerson($person);
+
+        Gate::authorize('archive', $record);
+
+        if ($record->status === 'archived') {
+            $record->update(['status' => 'active']);
+            DomainAudit::record(DomainAudit::PERSON_RESTORED, $record, [
+                'status' => 'active',
+            ]);
+        }
+
+        return back()->with('success', 'Persona restaurada.');
+    }
+
+    private function findPerson(string $person): Person
+    {
+        return Person::query()->findOrFail($person);
+    }
+
+    /**
+     * An empty PHP array serializes as JSON [] but the database requires a
+     * JSON object. Keep an empty object instead.
+     *
+     * @param  array<string, mixed>  $customFields
+     */
+    private function customFieldsPayload(array $customFields): array|object
+    {
+        return $customFields === [] ? (object) [] : $customFields;
+    }
+
+    /**
+     * @param  Collection<int, CustomFieldDefinition>  $definitions
+     * @return array<int, array<string, mixed>>
+     */
+    private function definitions(Collection $definitions): array
+    {
+        return $definitions->map(fn (CustomFieldDefinition $definition): array => [
+            'id' => $definition->getKey(),
+            'key' => $definition->key,
+            'label' => $definition->label,
+            'type' => $definition->type,
+            'typeLabel' => CustomFieldType::tryFrom((string) $definition->type)?->label() ?? $definition->type,
+            'options' => CustomFieldRegistry::optionChoices($definition->options),
+            'isRequired' => $definition->is_required,
+            'isActive' => $definition->is_active,
+        ])->values()->all();
+    }
+
+    /**
+     * @param  Collection<int, CustomFieldDefinition>  $definitions
+     * @return array<int, array<string, mixed>>
+     */
+    private function customFieldValues(Person $person, Collection $definitions): array
+    {
+        $values = $person->custom_fields ?? [];
+
+        return $definitions
+            ->filter(fn (CustomFieldDefinition $definition): bool => array_key_exists($definition->key, $values))
+            ->map(fn (CustomFieldDefinition $definition): array => [
+                'key' => $definition->key,
+                'label' => $definition->label,
+                'type' => $definition->type,
+                'value' => CustomFieldRegistry::displayValue($definition, $values[$definition->key] ?? null),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function summary(Person $person, bool $detailed = false): array
+    {
+        $data = [
+            'id' => $person->getKey(),
+            'firstName' => $person->first_name,
+            'lastName' => $person->last_name,
+            'fullName' => trim($person->first_name.' '.($person->last_name ?? '')),
+            'email' => $person->email,
+            'phone' => $person->phone,
+            'status' => $person->status,
+            'createdAt' => $person->created_at?->toIso8601String(),
+        ];
+
+        if ($detailed) {
+            $data['updatedAt'] = $person->updated_at?->toIso8601String();
+        }
+
+        return $data;
+    }
+}
