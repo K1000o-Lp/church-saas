@@ -1,11 +1,128 @@
 @import 'tailwindcss';
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
-@source '../**/*.blade.php';
-@source '../**/*.js';
+@source '../**/*.{ts,tsx}';
 
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+@custom-variant dark (&:is(.dark *));
+
+:root {
+    color-scheme: light;
+    --background: #f6f3ea;
+    --foreground: #1c2a24;
+    --card: #fffdf7;
+    --card-foreground: #1c2a24;
+    --popover: #fffdf7;
+    --popover-foreground: #1c2a24;
+    --primary: #1f4d3f;
+    --primary-foreground: #fbf9f2;
+    --secondary: #e9e3d4;
+    --secondary-foreground: #24352d;
+    --muted: #eee9dc;
+    --muted-foreground: #6b6a5e;
+    --accent: #b8892f;
+    --accent-foreground: #241a06;
+    --destructive: #b42318;
+    --destructive-foreground: #fffaf8;
+    --border: #ded7c7;
+    --input: #d7d0bf;
+    --ring: #2f6b57;
+    --sidebar: #efeade;
+    --sidebar-foreground: #24352d;
+    --sidebar-primary: #1f4d3f;
+    --sidebar-primary-foreground: #fbf9f2;
+    --sidebar-accent: #e2dccb;
+    --sidebar-accent-foreground: #1c2a24;
+    --sidebar-border: #dcd5c4;
+    --sidebar-ring: #2f6b57;
+    --radius: 0.75rem;
+}
+
+.dark {
+    color-scheme: dark;
+    --background: #0e1512;
+    --foreground: #ece7db;
+    --card: #141d19;
+    --card-foreground: #ece7db;
+    --popover: #141d19;
+    --popover-foreground: #ece7db;
+    --primary: #3c7c65;
+    --primary-foreground: #f7f5ec;
+    --secondary: #1d2a24;
+    --secondary-foreground: #e4dfd2;
+    --muted: #1a241f;
+    --muted-foreground: #a3a89c;
+    --accent: #d3a95a;
+    --accent-foreground: #1a1305;
+    --destructive: #f97066;
+    --destructive-foreground: #1a0a08;
+    --border: #2a3730;
+    --input: #2f3d35;
+    --ring: #7fb69f;
+    --sidebar: #101814;
+    --sidebar-foreground: #e4dfd2;
+    --sidebar-primary: #3c7c65;
+    --sidebar-primary-foreground: #f7f5ec;
+    --sidebar-accent: #1b261f;
+    --sidebar-accent-foreground: #ece7db;
+    --sidebar-border: #243029;
+    --sidebar-ring: #7fb69f;
+}
+
+@theme inline {
+    --font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Fraunces Variable', ui-serif, Georgia, 'Times New Roman', serif;
+
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+
+    html {
+        @apply scroll-smooth;
+    }
+
+    body {
+        @apply bg-background text-foreground antialiased;
+    }
+
+    ::selection {
+        @apply bg-accent/30 text-foreground;
+    }
+}
+
+@utility eyebrow {
+    @apply text-xs font-semibold tracking-[0.16em] uppercase text-accent;
 }
