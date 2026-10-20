@@ -1,10 +1,11 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
     CalendarClock,
     Coins,
     CreditCard,
     Globe2,
+    History,
     Plus,
     ShieldCheck,
 } from 'lucide-react';
@@ -14,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AppLayout } from '@/layouts/app-layout';
 import { formatDate, formatMoneyMinor } from '@/lib/format';
-import type { ChurchBilling, ChurchCurrencySummary, ChurchSummary } from '@/types';
+import type { ChurchBilling, ChurchCurrencySummary, ChurchSummary, PageProps } from '@/types';
 
 type Props = {
     church: ChurchSummary;
@@ -50,6 +51,10 @@ function Detail({
 }
 
 export default function ChurchShow({ church, membership, currencies, billing }: Props) {
+    const permissions = usePage<PageProps>().props.currentChurch?.permissions ?? [];
+    const canManageMembers = permissions.includes('church.members.manage');
+    const canManageCustomFields = permissions.includes('people.custom_fields.manage');
+
     return (
         <AppLayout>
             <Head title={church.name} />
@@ -65,11 +70,35 @@ export default function ChurchShow({ church, membership, currencies, billing }: 
                     <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                         Sesión activa · {membership.role}
                     </span>
-                    {['admin', 'finance'].includes(membership.role) && (
+                    {permissions.includes('church.plan.view') && (
                         <Button variant="outline" size="sm" asChild>
                             <Link href={`/churches/${church.slug}/plan`}>
                                 <CreditCard />
                                 Plan y uso
+                            </Link>
+                        </Button>
+                    )}
+                    {canManageMembers && (
+                        <Button variant="outline" size="sm" asChild>
+                            <Link href={`/churches/${church.slug}/settings/members`}>
+                                <ShieldCheck />
+                                Miembros
+                            </Link>
+                        </Button>
+                    )}
+                    {canManageCustomFields && (
+                        <Button variant="outline" size="sm" asChild>
+                            <Link href={`/churches/${church.slug}/settings/custom-fields`}>
+                                <Plus />
+                                Campos
+                            </Link>
+                        </Button>
+                    )}
+                    {permissions.includes('church.audit.view') && (
+                        <Button variant="outline" size="sm" asChild>
+                            <Link href={`/churches/${church.slug}/settings/audit`}>
+                                <History />
+                                Auditoría
                             </Link>
                         </Button>
                     )}
@@ -151,8 +180,17 @@ export default function ChurchShow({ church, membership, currencies, billing }: 
                         )}
                         <p>
                             Tu membresía es <strong className="text-foreground">{membership.role}</strong>.
-                            Las invitaciones y la gestión de roles llegarán en la siguiente fase.
+                            {canManageMembers
+                                ? ' Puedes invitar personas y administrar roles desde la configuración de miembros.'
+                                : ' Un administrador puede invitarte a otras iglesias o ajustar tu rol.'}
                         </p>
+                        {canManageMembers && (
+                            <Button className="w-full" variant="secondary" asChild>
+                                <Link href={`/churches/${church.slug}/settings/members`}>
+                                    Administrar miembros
+                                </Link>
+                            </Button>
+                        )}
                         <Button className="w-full" variant="secondary" asChild>
                             <Link href="/dashboard">Volver a mis iglesias</Link>
                         </Button>

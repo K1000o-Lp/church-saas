@@ -5,10 +5,18 @@ use App\Http\Controllers\Admin\ChurchController as AdminChurchController;
 use App\Http\Controllers\Admin\ChurchPlanController as AdminChurchPlanController;
 use App\Http\Controllers\Admin\InvoiceController as AdminInvoiceController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\ChurchAuditController;
 use App\Http\Controllers\ChurchController;
+use App\Http\Controllers\ChurchInvitationController;
+use App\Http\Controllers\ChurchMemberController;
 use App\Http\Controllers\ChurchOnboardingController;
 use App\Http\Controllers\ChurchPlanController;
+use App\Http\Controllers\CustomFieldDefinitionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\InvitationAcceptanceController;
+use App\Http\Controllers\PersonController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -21,7 +29,19 @@ Route::get('/', function () {
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
+
+    Route::get('/forgot-password', [PasswordResetLinkController::class, 'create'])->name('password.request');
+    Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->name('password.email');
+    Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])->name('password.reset');
+    Route::post('/reset-password', [NewPasswordController::class, 'store'])->name('password.store');
 });
+
+Route::get('/invitations/{token}', [InvitationAcceptanceController::class, 'show'])
+    ->middleware('throttle:20,1')
+    ->name('invitations.show');
+Route::post('/invitations/{token}', [InvitationAcceptanceController::class, 'store'])
+    ->middleware('throttle:10,1')
+    ->name('invitations.accept');
 
 Route::middleware('auth')->group(function (): void {
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
@@ -40,6 +60,65 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/churches/{church}/plan', [ChurchPlanController::class, 'show'])
         ->middleware('church')
         ->name('churches.plan');
+
+    Route::middleware(['church', 'permission:people.create'])->group(function (): void {
+        Route::get('/churches/{church}/people/create', [PersonController::class, 'create'])
+            ->name('people.create');
+        Route::post('/churches/{church}/people', [PersonController::class, 'store'])
+            ->name('people.store');
+    });
+
+    Route::middleware(['church', 'permission:people.view'])->group(function (): void {
+        Route::get('/churches/{church}/people', [PersonController::class, 'index'])
+            ->name('people.index');
+        Route::get('/churches/{church}/people/{person}', [PersonController::class, 'show'])
+            ->name('people.show');
+    });
+
+    Route::middleware(['church', 'permission:people.update'])->group(function (): void {
+        Route::get('/churches/{church}/people/{person}/edit', [PersonController::class, 'edit'])
+            ->name('people.edit');
+        Route::put('/churches/{church}/people/{person}', [PersonController::class, 'update'])
+            ->name('people.update');
+    });
+
+    Route::middleware(['church', 'permission:people.archive'])->group(function (): void {
+        Route::patch('/churches/{church}/people/{person}/archive', [PersonController::class, 'archive'])
+            ->name('people.archive');
+        Route::patch('/churches/{church}/people/{person}/restore', [PersonController::class, 'restore'])
+            ->name('people.restore');
+    });
+
+    Route::middleware(['church', 'permission:people.custom_fields.manage'])->group(function (): void {
+        Route::get('/churches/{church}/settings/custom-fields', [CustomFieldDefinitionController::class, 'index'])
+            ->name('custom-fields.index');
+        Route::post('/churches/{church}/settings/custom-fields', [CustomFieldDefinitionController::class, 'store'])
+            ->name('custom-fields.store');
+        Route::put('/churches/{church}/settings/custom-fields/{definition}', [CustomFieldDefinitionController::class, 'update'])
+            ->name('custom-fields.update');
+        Route::patch('/churches/{church}/settings/custom-fields/{definition}/toggle', [CustomFieldDefinitionController::class, 'toggle'])
+            ->name('custom-fields.toggle');
+    });
+
+    Route::get('/churches/{church}/settings/audit', [ChurchAuditController::class, 'index'])
+        ->middleware(['church', 'permission:church.audit.view'])
+        ->name('churches.audit.index');
+
+    Route::middleware(['church', 'permission:church.members.manage'])->group(function (): void {
+        Route::get('/churches/{church}/settings/members', [ChurchMemberController::class, 'index'])
+            ->name('churches.members.index');
+        Route::put('/churches/{church}/members/{membership}', [ChurchMemberController::class, 'update'])
+            ->name('churches.members.update');
+        Route::delete('/churches/{church}/members/{membership}', [ChurchMemberController::class, 'destroy'])
+            ->name('churches.members.destroy');
+
+        Route::post('/churches/{church}/invitations', [ChurchInvitationController::class, 'store'])
+            ->name('churches.invitations.store');
+        Route::post('/churches/{church}/invitations/{invitation}/resend', [ChurchInvitationController::class, 'resend'])
+            ->name('churches.invitations.resend');
+        Route::delete('/churches/{church}/invitations/{invitation}', [ChurchInvitationController::class, 'destroy'])
+            ->name('churches.invitations.destroy');
+    });
 });
 
 Route::prefix('admin')->name('admin.')->group(function (): void {

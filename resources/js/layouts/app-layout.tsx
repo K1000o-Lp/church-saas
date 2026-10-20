@@ -16,7 +16,7 @@ import { Brand } from '@/components/brand';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { PageProps } from '@/types';
+import type { CurrentChurch, PageProps } from '@/types';
 
 type NavItem = {
     label: string;
@@ -24,15 +24,54 @@ type NavItem = {
     icon: ComponentType<{ className?: string }>;
 };
 
-const primaryNav: NavItem[] = [
-    { label: 'Panel', href: '/dashboard', icon: LayoutDashboard },
-    { label: 'Personas', href: null, icon: Users },
-    { label: 'Eventos', href: null, icon: CalendarDays },
-    { label: 'Finanzas', href: null, icon: Wallet },
-    { label: 'Servicios', href: null, icon: HeartHandshake },
-];
+function buildPrimaryNav(currentChurch: CurrentChurch | null): NavItem[] {
+    const permissions = currentChurch?.permissions ?? [];
+    const churchPath = currentChurch ? `/churches/${currentChurch.slug}` : null;
 
-const secondaryNav: NavItem[] = [{ label: 'Configuración', href: null, icon: Settings }];
+    return [
+        { label: 'Panel', href: '/dashboard', icon: LayoutDashboard },
+        {
+            label: 'Personas',
+            href: churchPath && permissions.includes('people.view') ? `${churchPath}/people` : null,
+            icon: Users,
+        },
+        { label: 'Eventos', href: null, icon: CalendarDays },
+        { label: 'Finanzas', href: null, icon: Wallet },
+        { label: 'Servicios', href: null, icon: HeartHandshake },
+    ];
+}
+
+function buildSecondaryNav(currentChurch: CurrentChurch | null): NavItem[] {
+    const permissions = currentChurch?.permissions ?? [];
+    const churchPath = currentChurch ? `/churches/${currentChurch.slug}` : null;
+    const items: NavItem[] = [];
+
+    if (churchPath && permissions.includes('church.members.manage')) {
+        items.push({
+            label: 'Miembros',
+            href: `${churchPath}/settings/members`,
+            icon: Users,
+        });
+    }
+
+    if (churchPath && permissions.includes('people.custom_fields.manage')) {
+        items.push({
+            label: 'Campos',
+            href: `${churchPath}/settings/custom-fields`,
+            icon: Settings,
+        });
+    }
+
+    if (churchPath && permissions.includes('church.audit.view')) {
+        items.push({
+            label: 'Auditoría',
+            href: `${churchPath}/settings/audit`,
+            icon: Settings,
+        });
+    }
+
+    return items.length > 0 ? items : [{ label: 'Configuración', href: null, icon: Settings }];
+}
 
 function isActive(pathname: string, href: string): boolean {
     return pathname === href || pathname.startsWith(`${href}/`);
@@ -103,7 +142,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
     const user = auth.user;
     const pathname = url.split('?')[0] ?? '/';
     const churchHref = currentChurch ? `/churches/${currentChurch.slug}` : '/dashboard';
-
+    const primaryNav = buildPrimaryNav(currentChurch);
+    const secondaryNav = buildSecondaryNav(currentChurch);
     const mobileNav: NavItem[] = [
         { label: 'Panel', href: '/dashboard', icon: LayoutDashboard },
         { label: 'Iglesia', href: churchHref, icon: Church },
@@ -126,7 +166,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
                         </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                             {currentChurch?.role
-                                ? `Rol: ${currentChurch.role}`
+                                ? `Rol: ${currentChurch.roleLabel}`
                                 : 'Abre una iglesia desde el panel'}
                         </p>
                     </div>
@@ -141,7 +181,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
                     ))}
                     <div className="my-4 border-t border-sidebar-border" />
                     {currentChurch &&
-                        ['admin', 'finance'].includes(currentChurch.role ?? '') && (
+                        currentChurch.permissions.includes('church.plan.view') && (
                             <NavLink
                                 item={{
                                     label: 'Plan',

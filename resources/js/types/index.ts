@@ -11,6 +11,8 @@ export type CurrentChurch = {
     currencyCode: string | null;
     timezone: string | null;
     role: string | null;
+    roleLabel: string;
+    permissions: string[];
 };
 
 export type Flash = {
@@ -64,6 +66,88 @@ export type CurrencyOption = {
 export type ChurchCurrencySummary = {
     code: string;
     isDefault: boolean;
+};
+
+export type RoleOption = {
+    value: string;
+    label: string;
+};
+
+export type Pagination = {
+    currentPage: number;
+    lastPage: number;
+    perPage: number;
+    total: number;
+    previousPageUrl: string | null;
+    nextPageUrl: string | null;
+};
+
+export type PersonSummary = {
+    id: number;
+    firstName: string;
+    lastName: string | null;
+    fullName: string;
+    email: string | null;
+    phone: string | null;
+    status: string;
+    createdAt?: string | null;
+    updatedAt?: string | null;
+};
+
+export type CustomFieldTypeValue =
+    | 'text'
+    | 'textarea'
+    | 'number'
+    | 'date'
+    | 'boolean'
+    | 'select'
+    | 'multiselect';
+
+export type CustomFieldOption = {
+    value: string;
+    label: string;
+};
+
+export type CustomFieldDefinitionSummary = {
+    id: number;
+    key: string;
+    label: string;
+    type: CustomFieldTypeValue;
+    typeLabel: string;
+    options: CustomFieldOption[];
+    isRequired: boolean;
+    isActive: boolean;
+};
+
+export type PersonCustomFieldValue = {
+    key: string;
+    label: string;
+    type: CustomFieldTypeValue;
+    value: string;
+};
+
+export type CustomFieldInputValue = string | number | boolean | string[] | null;
+
+export type ChurchMemberSummary = {
+    id: number;
+    userId: number;
+    name: string | null;
+    email: string | null;
+    role: string;
+    roleLabel: string;
+    status: string;
+    joinedAt: string | null;
+    isCurrentUser: boolean;
+};
+
+export type ChurchInvitationSummary = {
+    id: number;
+    email: string;
+    role: string;
+    roleLabel: string;
+    status: string;
+    expiresAt: string | null;
+    expired: boolean;
 };
 
 export type LocaleOption = {
