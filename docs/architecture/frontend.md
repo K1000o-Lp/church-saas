@@ -74,6 +74,8 @@ type PageProps = {
         currencyCode: string | null;
         timezone: string | null;
         role: string | null;
+        roleLabel: string;
+        permissions: string[];
     } | null;
     flash: { success?: string | null; error?: string | null };
     errors: Record<string, string>;
@@ -88,6 +90,9 @@ Criterios:
 - `currentChurch` se deriva de la iglesia resuelta por el middleware, nunca de un
   identificador enviado por el cliente. Solo se comparte cuando existe membresía resuelta en
   la petición, por lo que las páginas de `/admin` no reciben contexto tenant.
+- `currentChurch.permissions` es una lista de permisos efectivos para UX (mostrar u ocultar
+  acciones). No sustituye la autorización del servidor: cada ruta y Policy vuelve a comprobar
+  membresía y permiso.
 - No agregar notas pastorales, montos, listas de miembros ni identificadores internos a los
   props compartidos. Cada página recibe solo lo que necesita.
 - Al ampliar los props compartidos, actualizar `PageProps` en `resources/js/types/index.ts`.
@@ -205,8 +210,8 @@ usan en más de una ruta.
 - Frontend: `npm run typecheck` y `npm run build` son obligatorios.
 - Cambios de tenancy: pruebas positivas y negativas entre dos iglesias.
 - Pendiente de adoptar: pruebas de componentes (Vitest + Testing Library) y E2E
-  (Playwright). Al introducirlas, priorizar login, creación de iglesia, membresías y
-  monedas.
+  (Playwright). Al introducirlas, priorizar login, recuperación de contraseña, aceptación de
+  invitaciones, creación de iglesia, directorio de personas y gestión de roles.
 
 ## Decisiones abiertas
 

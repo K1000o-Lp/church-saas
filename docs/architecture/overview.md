@@ -2,7 +2,7 @@
 
 ## Estado y alcance
 
-Existe scaffold Laravel 12 con modelos Eloquent, contexto/middleware de tenancy y migraciones iniciales escritas. Hay autenticación web por sesión, selección de iglesia, autorización de membresía por petición, onboarding autoservicio de iglesia con membresía y monedas, backoffice exclusivo de plataforma en `/admin` con auditoría y administración de estados, planes/límites/funciones con entitlements por iglesia, facturación manual en USD con pagos y estados, purga auditada de iglesias archivadas, y una base de frontend Inertia + React + TypeScript con login, panel de iglesias, historial de facturas y contexto de iglesia. Faltan invitaciones, recuperación de contraseña, políticas de rol/permiso formales, MFA, pagos automáticos, infraestructura desplegada e integraciones productivas. No ejecutar migraciones ni intentar conexiones hasta configurar explícitamente PostgreSQL.
+Existe scaffold Laravel 12 con modelos Eloquent, contexto/middleware de tenancy y migraciones iniciales escritas. Hay autenticación web por sesión, recuperación de contraseña, selección de iglesia, autorización de membresía por petición, RBAC formal con roles y permisos, invitaciones por correo, gestión de miembros, onboarding autoservicio de iglesia con membresía y monedas, backoffice exclusivo de plataforma en `/admin` con auditoría y administración de estados, planes/límites/funciones con entitlements por iglesia, facturación manual en USD con pagos y estados, purga auditada de iglesias archivadas, auditoría de dominio, contexto tenant explícito para jobs/comandos, y un módulo de personas con campos personalizados. La interfaz Inertia + React + TypeScript incluye login, recuperación, panel de iglesias, directorio de personas, configuración de miembros/campos e historial de facturas. Faltan MFA, runner de workflows, pagos automáticos, infraestructura desplegada e integraciones productivas. No ejecutar migraciones ni intentar conexiones hasta configurar explícitamente PostgreSQL.
 
 La plataforma objetivo es un SaaS para iglesias, con foco inicial en Venezuela y Colombia. El alcance por validar incluye gestión de personas y campos personalizados, segmentos, eventos con RSVP y asistencia, diezmos/ofrendas, consolidación pastoral, servidores y servicios/cultos, y eventualmente automatizaciones e integraciones de pago.
 
@@ -150,6 +150,32 @@ La purga de iglesias archivadas usa `php artisan churches:purge --date=YYYY-MM-D
 el snapshot de la iglesia. El comando registra una entrada `church.purged` con conteos antes de
 borrar.
 
+## Roles, permisos y autorización
+
+Los roles son fijos para el MVP: `admin`, `pastor`, `finance`, `leader`, `volunteer` y `member`. `App\Support\Auth\RolePermissions` define la matriz; `App\Support\Auth\Permission` enumera permisos estables. `CurrentChurch` guarda iglesia y membresía resueltas, y expone `allows()`, `permissions()` y `run()` para contextos explícitos.
+
+Las rutas tenant usan el middleware `permission:<permiso>` y Policies de Laravel (`ChurchPolicy`, `PersonPolicy`, `CustomFieldDefinitionPolicy`, `ChurchMembershipPolicy`, `ChurchInvitationPolicy`, `WorkflowPolicy`). `HandleInertiaRequests` comparte `currentChurch.permissions` solo para UX; el servidor vuelve a autorizar. Un rol desconocido, una membresía inactiva o un contexto ausente deniegan por defecto.
+
+## Invitaciones y recuperación
+
+`church_invitations` guarda iglesia, correo normalizado, rol, hash del token, estado, actor y expiración. El token plano solo viaja en el enlace de correo; en base se guarda SHA-256. Una invitación vence a los 7 días, es de un solo uso y está ligada al correo. La aceptación revalida iglesia activa, expiración, límite de usuarios activos y crea/reactiva la membresía en una transacción; una persona nueva puede registrarse desde el enlace con el correo bloqueado.
+
+La recuperación de contraseña usa el broker `users`, responde de forma genérica para evitar enumeración, aplica throttle, usa tokens de un solo uso y elimina sesiones abiertas al completar el cambio.
+
+## Auditoría de dominio
+
+`church_audit_entries` registra actor, rol, iglesia, acción, sujeto, metadata JSONB, IP y user agent. `DomainAudit` sanea metadatos, limita su tamaño y rechaza claves sensibles; las acciones de personas, campos personalizados, membresías e invitaciones se registran dentro de la operación. La auditoría de dominio se elimina en cascada con la iglesia; `platform_audit_entries` conserva la traza de plataforma y purga.
+
+## Contexto tenant en jobs y comandos
+
+`CurrentChurch::run()` establece y restaura contexto de forma anidada y limpia en `finally`. Los jobs tenant deben extender `TenantAwareJob`, transportar IDs (no modelos), revalidar iglesia activa, membresía del actor y permiso al ejecutar, y fallar cerrado. Los comandos deben recibir `--church` explícito mediante `InteractsWithTenant`; los procesos globales deben declararse como tales.
+
+## Personas y campos personalizados
+
+El directorio implementa listado con búsqueda/paginación, creación, edición, archivo/restauración, permisos y auditoría. `people.custom_fields` JSONB almacena valores tipados; `custom_field_definitions` define clave inmutable, etiqueta, tipo y opciones. `CustomFieldRegistry` genera reglas dinámicas, normaliza valores y conserva valores de definiciones desactivadas. El campo clave no cambia y las definiciones se desactivan en lugar de borrarse.
+
+El índice GIN existente sobre `people.custom_fields` no garantiza acelerar filtros `->>`; las consultas concretas deben medirse y, si hace falta, crear índices de expresión. Los límites de personas se aplican al crear mediante `Person` y `Entitlements`.
+
 ## Fail-closed y autorización
 
 - Si falta el tenant, hay ambigüedad, membresía inválida o no se puede comprobar autorización, denegar por defecto; nunca recurrir a un tenant por omisión.
@@ -157,7 +183,7 @@ borrar.
 - Aplicar autorización en servidor en cada lectura y escritura, además de cualquier filtro de interfaz. Usar políticas/permisos del dominio; no considerar conocer un identificador como autorización.
 - Asegurar que rutas de carga masiva, búsquedas, reportes, exportaciones, descargas, jobs y endpoints de integración respeten los mismos límites.
 - Filtrar por `church_id` explícitamente en repositorios/consultas tenant-owned. Evaluar restricciones compuestas y, si procede, Row-Level Security de PostgreSQL como defensa adicional, sin reemplazar la autorización de aplicación.
-- Auditar acciones sensibles con actor, tenant, objeto, hora y resultado, limitando los datos personales y secretos almacenados en la auditoría.
+- Auditar acciones sensibles con actor, tenant, objeto, hora y resultado, limitando los datos personales y secretos almacenados en la auditoría. La implementación actual usa `church_audit_entries` y `DomainAudit`.
 
 **Excepciones deliberadas a `church_id`:** `users` es identidad global; `platform_admins` es identidad global de backoffice; `churches` es el registro global de tenants; `church_memberships` es la tabla global de acceso/control (`church_id` indexado y relación user–church); `platform_audit_entries` referencia `church_id` sin FK para conservar historial tras una purga. Todo dominio tenant-owned implementado sí incluye `church_id`.
 

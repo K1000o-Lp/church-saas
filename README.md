@@ -8,7 +8,7 @@ Las capacidades, integraciones, límites y precios descritos aquí son objetivos
 
 ## Estado actual
 
-El scaffold Laravel 12 y el primer código de modelos, contexto de tenancy y migraciones ya están escritos. El esquema se ejecutó en un PostgreSQL local de desarrollo y las pruebas de esquema usan una base PostgreSQL separada. Existe autenticación web por sesión con login/logout, selección de iglesia por membresía, resolución de tenant por petición, onboarding autoservicio que crea iglesia, membresía `admin` y monedas en una transacción, backoffice exclusivo de plataforma en `/admin` con auditoría, administración de estados y metadatos, planes/límites/funciones con suscripción y overrides por iglesia, facturación manual en USD con pagos y estados, purga auditada de iglesias archivadas, y una base de frontend Inertia + React + TypeScript con login, panel de iglesias, onboarding, pantalla de plan, historial de facturas y contexto de iglesia. Faltan invitaciones, recuperación de contraseña, MFA, runner de workflows, pagos automáticos e integraciones productivas. Las decisiones de onboarding, backoffice, planes y facturación están documentadas en [`docs/architecture/overview.md`](docs/architecture/overview.md#onboarding-de-iglesias), [`docs/architecture/overview.md`](docs/architecture/overview.md#backoffice-de-plataforma), [`docs/architecture/overview.md`](docs/architecture/overview.md#planes-límites-y-funciones) y [`docs/architecture/overview.md`](docs/architecture/overview.md#facturación-manual).
+El scaffold Laravel 12 y el primer código de modelos, contexto de tenancy y migraciones ya están escritos. El esquema se ejecutó en un PostgreSQL local de desarrollo y las pruebas de esquema usan una base PostgreSQL separada. Existe autenticación web por sesión con login/logout, recuperación de contraseña, selección de iglesia por membresía, resolución de tenant por petición, onboarding autoservicio que crea iglesia, membresía `admin` y monedas en una transacción, RBAC formal con roles y permisos, invitaciones por correo, gestión de miembros, backoffice exclusivo de plataforma en `/admin` con auditoría, administración de estados y metadatos, planes/límites/funciones con suscripción y overrides por iglesia, facturación manual en USD con pagos y estados, purga auditada de iglesias archivadas, auditoría de dominio, contexto tenant explícito para jobs/comandos, y un módulo de personas con campos personalizados. La interfaz Inertia + React + TypeScript incluye login, recuperación de contraseña, panel de iglesias, onboarding, pantalla de plan, historial de facturas, directorio de personas y configuración de miembros/campos. Faltan MFA, runner de workflows, pagos automáticos e integraciones productivas. Las decisiones de onboarding, backoffice, planes y facturación están documentadas en [`docs/architecture/overview.md`](docs/architecture/overview.md#onboarding-de-iglesias), [`docs/architecture/overview.md`](docs/architecture/overview.md#backoffice-de-plataforma), [`docs/architecture/overview.md`](docs/architecture/overview.md#planes-límites-y-funciones) y [`docs/architecture/overview.md`](docs/architecture/overview.md#facturación-manual).
 
 La matriz de planes se aplica con la migración de datos y puede resincronizarse de forma idempotente; las iglesias sin suscripción reciben Comunidad:
 
@@ -38,7 +38,7 @@ La facturación es manual y en USD: el backoffice emite facturas, registra pagos
 
 El frontend usa Inertia v3, React 19, TypeScript estricto, Vite 7, Tailwind CSS v4 y primitivas shadcn/ui sobre Radix. El servidor conserva rutas, sesión, validación y autorización; las páginas React no deciden tenant ni permisos. La guía de componentes y el sistema visual están en [`docs/architecture/frontend.md`](docs/architecture/frontend.md) y [`AGENTS.md`](AGENTS.md).
 
-`composer setup` instala dependencias, prepara `.env` desde `.env.example` si falta, genera la clave y construye frontend. La conexión empieza como `DB_CONNECTION=unconfigured`; configura la instancia y credenciales PostgreSQL en `.env` y selecciona explícitamente `pgsql` cuando el servicio esté listo. **Ni `composer setup` ni `composer install` ejecutan migraciones automáticamente**; ejecútalas solo como paso deliberado tras configurar y verificar PostgreSQL. Sesión y cache locales usan archivos, y la cola usa `sync`; cambia la cola a un driver durable al desplegar.
+`composer setup` instala dependencias, prepara `.env` desde `.env.example` si falta, genera la clave y construye frontend. La conexión empieza como `DB_CONNECTION=unconfigured`; configura la instancia y credenciales PostgreSQL en `.env` y selecciona explícitamente `pgsql` cuando el servicio esté listo. **Ni `composer setup` ni `composer install` ejecutan migraciones automáticamente**; ejecútalas solo como paso deliberado tras configurar y verificar PostgreSQL. Sesión y cache locales usan archivos, y la cola usa `sync`; cambia la cola a un driver durable al desplegar. Las invitaciones y la recuperación de contraseña usan el mailer configurado; en local `MAIL_MAILER=log` escribe los enlaces en el log en lugar de enviar correo real.
 
 El esquema define `church_currencies` para monedas admitidas, `funds` para destinos financieros y `workflow_versions` para definiciones publicadas inmutables, protegidas contra UPDATE/DELETE directos mediante trigger PostgreSQL, además de restricciones tenant/evento en RSVP y asistencia, coincidencia entre la persona del RSVP y la asistencia, unicidad parcial de asistencia, moneda de contribución existente por iglesia, máximo un default monetario, rangos temporales válidos, enteros no negativos, catálogos iniciales de estado y FKs de responsables contra membresías. Los modelos tenant-owned deniegan creación, modificación y borrado sin contexto de iglesia coincidente; el borrado también compara el `church_id` original. `TRUNCATE` y privilegios de DBA no son operaciones de aplicación ni están cubiertos por el trigger.
 
@@ -56,6 +56,7 @@ DB_DATABASE=church_saas
 DB_USERNAME=church
 DB_PASSWORD=...
 DB_SSLMODE=disable
+DB_TIMEZONE=UTC
 ```
 
 Con PostgreSQL nativo en el puerto `5432`:
@@ -72,7 +73,19 @@ Con Docker, `compose.yaml` levanta PostgreSQL en el puerto `5433` (para no choca
 docker compose up -d
 ```
 
-`tests/Feature/PostgresSchemaTest.php` verifica el índice GIN, los CHECK monetarios y temporales, la identidad de RSVP/asistencia, la coincidencia persona-RSVP, las unicidades, la integridad entre iglesias, las FKs de membresía, los catálogos de estado, la forma de los JSONB y la inmutabilidad/cascada de versiones de workflow.
+`tests/Feature/PostgresSchemaTest.php` verifica el índice GIN, los CHECK monetarios y temporales, la identidad de RSVP/asistencia, la coincidencia persona-RSVP, las unicidades, la integridad entre iglesias, las FKs de membresía, los catálogos de estado, la forma de los JSONB y la inmutabilidad/cascada de versiones de workflow. Las pruebas de RBAC, invitaciones, recuperación de contraseña, personas/campos personalizados, auditoría y jobs con tenant están en `tests/Feature` y `tests/Unit`.
+
+### Roles y permisos
+
+Los roles viven en `App\Support\Auth\Role` y la matriz en `RolePermissions`; las rutas usan Gates/Policies y el middleware `permission:<permiso>`. `currentChurch.permissions` se comparte solo como ayuda de interfaz; la autorización real se repite en Laravel. Un rol desconocido no recibe permisos.
+
+### Invitaciones y recuperación
+
+Un `admin` puede invitar por correo desde la configuración de miembros. El token se guarda hasheado, vence en 7 días y se acepta una sola vez; una persona nueva puede crear su cuenta desde la invitación y una existente inicia sesión. La recuperación de contraseña usa el broker de Laravel, responde de forma genérica y elimina las sesiones abiertas al completar el cambio.
+
+### Auditoría y jobs
+
+Las acciones sensibles de dominio se registran en `church_audit_entries` con actor, iglesia, acción y metadatos mínimos. Los jobs deben extender `TenantAwareJob` y llevar IDs explícitos; el contexto se establece y limpia con `CurrentChurch::run`, y la iglesia/membresía/permiso se revalidan al ejecutar.
 
 ## Navegación
 
