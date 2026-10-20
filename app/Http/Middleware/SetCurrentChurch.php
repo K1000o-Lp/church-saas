@@ -17,19 +17,28 @@ class SetCurrentChurch
     {
         $this->currentChurch->clear();
 
-        $church = $request->route('church');
         $user = $request->user();
 
-        abort_unless($church instanceof Church && $user !== null, 404);
-        abort_unless($church->status === 'active', 404);
+        abort_unless($user !== null, 404);
 
-        $isMember = ChurchMembership::query()
+        $church = $request->route('church');
+
+        if (! $church instanceof Church) {
+            $church = $this->selectedChurch($request);
+        }
+
+        abort_unless($church instanceof Church && $church->status === 'active', 404);
+
+        $membership = ChurchMembership::query()
             ->where('church_id', $church->getKey())
             ->where('user_id', $user->getAuthIdentifier())
             ->where('status', 'active')
-            ->exists();
+            ->first();
 
-        abort_unless($isMember, 404);
+        abort_unless($membership !== null, 404);
+
+        $request->session()->put('current_church_id', $church->getKey());
+        $request->attributes->set('currentMembership', $membership);
 
         $this->currentChurch->set($church);
 
@@ -38,5 +47,22 @@ class SetCurrentChurch
         } finally {
             $this->currentChurch->clear();
         }
+    }
+
+    private function selectedChurch(Request $request): ?Church
+    {
+        $churchId = $request->session()->get('current_church_id');
+
+        if ($churchId === null) {
+            return null;
+        }
+
+        $church = Church::query()->find($churchId);
+
+        if ($church === null) {
+            $request->session()->forget('current_church_id');
+        }
+
+        return $church;
     }
 }

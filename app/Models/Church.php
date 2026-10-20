@@ -15,6 +15,11 @@ class Church extends Model
         return ['settings' => 'array'];
     }
 
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
     public function memberships(): HasMany
     {
         return $this->hasMany(ChurchMembership::class);
