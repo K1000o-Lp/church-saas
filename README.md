@@ -8,7 +8,7 @@ Las capacidades, integraciones, límites y precios descritos aquí son objetivos
 
 ## Estado actual
 
-El scaffold Laravel 12 y el primer código de modelos, contexto de tenancy y migraciones ya están escritos. El esquema se ejecutó en un PostgreSQL local de desarrollo y las pruebas de esquema usan una base PostgreSQL separada. Existe autenticación web por sesión con login/logout, selección de iglesia por membresía, resolución de tenant por petición, onboarding autoservicio que crea iglesia, membresía `admin` y monedas en una transacción, backoffice exclusivo de plataforma en `/admin` con auditoría, administración de estados y metadatos, planes/límites/funciones con suscripción y overrides por iglesia, y una base de frontend Inertia + React + TypeScript con login, panel de iglesias, onboarding, pantalla de plan y contexto de iglesia. Faltan invitaciones, recuperación de contraseña, facturación, MFA, runner de workflows, pagos e integraciones productivas. Las decisiones de onboarding, backoffice y planes están documentadas en [`docs/architecture/overview.md`](docs/architecture/overview.md#onboarding-de-iglesias), [`docs/architecture/overview.md`](docs/architecture/overview.md#backoffice-de-plataforma) y [`docs/architecture/overview.md`](docs/architecture/overview.md#planes-límites-y-funciones).
+El scaffold Laravel 12 y el primer código de modelos, contexto de tenancy y migraciones ya están escritos. El esquema se ejecutó en un PostgreSQL local de desarrollo y las pruebas de esquema usan una base PostgreSQL separada. Existe autenticación web por sesión con login/logout, selección de iglesia por membresía, resolución de tenant por petición, onboarding autoservicio que crea iglesia, membresía `admin` y monedas en una transacción, backoffice exclusivo de plataforma en `/admin` con auditoría, administración de estados y metadatos, planes/límites/funciones con suscripción y overrides por iglesia, facturación manual en USD con pagos y estados, purga auditada de iglesias archivadas, y una base de frontend Inertia + React + TypeScript con login, panel de iglesias, onboarding, pantalla de plan, historial de facturas y contexto de iglesia. Faltan invitaciones, recuperación de contraseña, MFA, runner de workflows, pagos automáticos e integraciones productivas. Las decisiones de onboarding, backoffice, planes y facturación están documentadas en [`docs/architecture/overview.md`](docs/architecture/overview.md#onboarding-de-iglesias), [`docs/architecture/overview.md`](docs/architecture/overview.md#backoffice-de-plataforma), [`docs/architecture/overview.md`](docs/architecture/overview.md#planes-límites-y-funciones) y [`docs/architecture/overview.md`](docs/architecture/overview.md#facturación-manual).
 
 La matriz de planes se aplica con la migración de datos y puede resincronizarse de forma idempotente; las iglesias sin suscripción reciben Comunidad:
 
@@ -24,6 +24,15 @@ php artisan platform:admin:deactivate admin@example.com
 ```
 
 La cuenta de plataforma es exclusiva: vive en `platform_admins`, usa el guard `platform` y no puede acceder a `/dashboard` ni a datos pastorales o financieros de las iglesias.
+
+La purga de iglesias archivadas es explícita y auditable. La fecha de corte es obligatoria y se purgan las iglesias archivadas hasta esa fecha inclusive. Sin `--dry-run` elimina datos tenant; conserva la auditoría de plataforma y el historial de facturas/pagos:
+
+```bash
+php artisan churches:purge --date=2026-10-20 --dry-run
+php artisan churches:purge --date=2026-10-20
+```
+
+La facturación es manual y en USD: el backoffice emite facturas, registra pagos con referencia y notas, y cambia estados (`issued`, `overdue`, `paid`, `void`). Los montos se guardan en centavos; no hay impuestos, PDF ni cobro automático en esta fase.
 
 **PostgreSQL es obligatorio para validar el esquema.** JSONB, el índice GIN en `people.custom_fields`, el `CHECK` monetario y el trigger de inmutabilidad no existen en SQLite; no uses SQLite para ejecutar estas migraciones ni para pruebas de persistencia.
 

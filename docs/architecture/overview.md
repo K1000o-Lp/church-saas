@@ -2,7 +2,7 @@
 
 ## Estado y alcance
 
-Existe scaffold Laravel 12 con modelos Eloquent, contexto/middleware de tenancy y migraciones iniciales escritas. Hay autenticación web por sesión, selección de iglesia, autorización de membresía por petición, onboarding autoservicio de iglesia con membresía y monedas, backoffice exclusivo de plataforma en `/admin` con auditoría y administración de estados, planes/límites/funciones con entitlements por iglesia, y una base de frontend Inertia + React + TypeScript con login, panel de iglesias y contexto de iglesia. Faltan invitaciones, recuperación de contraseña, políticas de rol/permiso, facturación, MFA, infraestructura desplegada e integraciones productivas. No ejecutar migraciones ni intentar conexiones hasta configurar explícitamente PostgreSQL.
+Existe scaffold Laravel 12 con modelos Eloquent, contexto/middleware de tenancy y migraciones iniciales escritas. Hay autenticación web por sesión, selección de iglesia, autorización de membresía por petición, onboarding autoservicio de iglesia con membresía y monedas, backoffice exclusivo de plataforma en `/admin` con auditoría y administración de estados, planes/límites/funciones con entitlements por iglesia, facturación manual en USD con pagos y estados, purga auditada de iglesias archivadas, y una base de frontend Inertia + React + TypeScript con login, panel de iglesias, historial de facturas y contexto de iglesia. Faltan invitaciones, recuperación de contraseña, políticas de rol/permiso formales, MFA, pagos automáticos, infraestructura desplegada e integraciones productivas. No ejecutar migraciones ni intentar conexiones hasta configurar explícitamente PostgreSQL.
 
 La plataforma objetivo es un SaaS para iglesias, con foco inicial en Venezuela y Colombia. El alcance por validar incluye gestión de personas y campos personalizados, segmentos, eventos con RSVP y asistencia, diezmos/ofrendas, consolidación pastoral, servidores y servicios/cultos, y eventualmente automatizaciones e integraciones de pago.
 
@@ -74,7 +74,10 @@ Alcance implementado:
   por defecto.
 - Cada cambio de metadatos o estado se registra en `platform_audit_entries` con actor, IP,
   valores anteriores y nuevos.
-- No hay impersonación ni borrado físico desde el backoffice.
+- Facturación manual por iglesia: emisión, pagos con referencia/notas y cambios de estado con
+  auditoría.
+- No hay impersonación ni borrado físico desde el backoffice. La purga es un comando explícito
+  con fecha de corte, `--dry-run`, auditoría y conservación del historial.
 
 Provisionamiento:
 
@@ -83,7 +86,6 @@ php artisan platform:admin:create admin@example.com --name="Admin Plataforma"
 php artisan platform:admin:deactivate admin@example.com
 ```
 
-Pendiente para fases posteriores: facturación manual y purga auditada de iglesias archivadas.
 MFA queda explícitamente para una fase de endurecimiento antes de producción.
 
 ## Planes, límites y funciones
@@ -124,6 +126,29 @@ del recurso excedido se rechazan. Las funciones fuera del plan se bloquean con
 gestionar suscripción y overrides con auditoría en `platform_audit_entries`. La pantalla
 `/churches/{church}/plan` está disponible para roles `admin` y `finance` con plan actual, uso,
 límites, funciones y estado de suscripción.
+
+## Facturación manual
+
+`invoices` y `payments` son registros de plataforma ligados a una iglesia, con snapshot de
+nombre y slug para conservar historia. Los montos son enteros en centavos y la moneda es USD;
+no se manejan impuestos, PDF ni cobro automático en esta fase. Los estados son `issued`,
+`overdue`, `paid` y `void`. Una factura emitida pasa a `overdue` automáticamente al consultar
+facturación si su vencimiento ya pasó; los pagos parciales se aceptan hasta cubrir el total y,
+al cubrirlo, la factura pasa a `paid`. Una factura pagada no se anula en esta fase y una factura
+anulada no admite pagos. Las transiciones y la suma de pagos se validan en servidor dentro de
+una transacción con bloqueo de la factura.
+
+El backoffice (`/admin/invoices` y `/admin/churches/{church}/invoices`) permite emitir,
+registrar pagos con método, referencia, notas y fecha, y cambiar estados. Cada acción se
+audita en `platform_audit_entries`. La pantalla de iglesia muestra el historial a roles `admin`
+y `finance`; otros roles no reciben facturas ni pagos en props. Las iglesias archivadas son de
+solo lectura para facturación.
+
+La purga de iglesias archivadas usa `php artisan churches:purge --date=YYYY-MM-DD` (con
+`--dry-run` opcional). Elimina datos tenant y la fila de iglesia; conserva
+`platform_audit_entries` e `invoices`/`payments`, cuyos `church_id` quedan nulos pero mantienen
+el snapshot de la iglesia. El comando registra una entrada `church.purged` con conteos antes de
+borrar.
 
 ## Fail-closed y autorización
 

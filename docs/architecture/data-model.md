@@ -61,9 +61,16 @@ Queda abierta la política para invitados no registrados (la unicidad con `perso
 
 - **`funds`:** fondos tenant-owned con nombre y estado, creados antes de contribuciones y con claves únicas `(church_id,id)` y `(church_id,name)`. `status` está acotado a `active`, `archived`.
 - **`contributions`:** registro financiero de diezmo/ofrenda, persona y fondo opcionales, fecha efectiva, estado, referencia de origen, importe no negativo y código de moneda explícito. La FK compuesta del fondo impide asociar un fondo de otra iglesia; `(church_id,currency_code)` debe existir en `church_currencies`; `amount_minor >= 0` está declarado explícitamente para PostgreSQL (no se confía en `unsignedBigInteger`). `status` está acotado a `recorded`, `voided`, `reconciled` y `method` a `cash`, `transfer`, `card`, `mobile_payment`, `other`.
-- **Payment/PaymentAttempt** (si se integra cobro): proveedor, identificador externo, estado, monto solicitado/recibido y eventos de proveedor; no guardar datos de tarjeta que no se deban custodiar.
+- **Futuro PaymentAttempt de proveedor** (si se integra cobro automático): proveedor, identificador externo, estado, monto solicitado/recibido y eventos de proveedor; no guardar datos de tarjeta que no se deban custodiar.
 - **ExchangeRate/ConversionRecord** (solo si se habilita conversión): monedas de origen/destino, tasa, fuente, instante, regla de redondeo y vínculo con montos originales/liquidados.
 - **Reconciliation/Settlement** (según operación validada): agrupación y diferencia de registros con liquidaciones del proveedor o extractos.
+
+### Facturación manual de plataforma
+
+- **`invoices`:** factura de plataforma ligada a una iglesia, con `church_id` nullable y snapshot `church_name`/`church_slug`. `number` es único y se genera al emitir; `status` está acotado a `issued`, `paid`, `void`, `overdue`; `currency_code` es USD y `amount_minor > 0`. Guarda concepto, notas, emisión, vencimiento, pago, anulación, motivo y actor de plataforma. La FK `church_id` usa `nullOnDelete` para conservar historia tras una purga.
+- **`payments`:** pago manual de una factura con `amount_minor > 0`, USD, método (`cash`, `transfer`, `card`, `mobile_payment`, `other`), referencia, notas, fecha y actor. `invoice_id` cascadea con la factura; `church_id` usa `nullOnDelete`. El total pagado se suma en servidor y nunca se acepta un pago por encima del saldo.
+- **Estados:** una factura emitida con vencimiento pasado pasa a `overdue` al consultar facturación. Admite pagos parciales; al cubrir el total pasa a `paid`. `paid` no se anula y `void` es terminal en esta fase. La transición y el registro del pago se ejecutan con bloqueo de la factura.
+- **Purga:** `churches:purge --date=YYYY-MM-DD [--dry-run]` elimina datos tenant y la iglesia; `platform_audit_entries` no tiene FK y se conserva, mientras facturas y pagos quedan sin `church_id` pero mantienen el snapshot y la relación entre ambos. El comando registra `church.purged` con conteos antes del borrado.
 
 **Invariantes monetarias:** almacenar montos como enteros en la unidad menor de la moneda (por ejemplo, centavos cuando corresponda), junto a código de moneda explícito. No usar `float`/punto flotante para dinero. Confirmar exponente/unidad menor por moneda. Sumas y comparaciones se hacen dentro de la misma moneda; conversión siempre explícita, preservando importe original y registro de tasa, fuente, fecha y redondeo cuando aplique. No inferir tasa de cambio ni mezclar monedas en un total sin conversión documentada.
 
@@ -111,7 +118,9 @@ JSONB puede servir para settings, valores personalizados, reglas de segmentos y 
 - Planes: recursos acotados (`people`, `active_users`, `currencies`, `events_per_month`, `workflows`, `executions_per_month`, `integrations`) y funciones acotadas (`multi_currency`, `volunteers`, `pastoral_pipeline`, `white_label`, `automation`, `payments`); valores de límite no negativos o `NULL` para ilimitado.
 - Suscripción única por iglesia y asignación automática del plan Comunidad al crear la iglesia; la migración de datos completa iglesias previas.
 - Límites duros en creación para personas, usuarios activos, monedas, eventos, workflows y ejecuciones. La edición y la lectura existentes no se bloquean; un downgrade conserva datos y bloquea nuevas altas del recurso excedido.
-- Auditoría de dominio completa, soft delete, RLS y validación semántica profunda de JSONB siguen pendientes. La auditoría de plataforma cubre cambios de iglesia, estados, suscripciones y overrides; facturación y purga quedan para fases posteriores.
+- Facturación: monto positivo, USD explícito, estados acotados, pagos positivos y método acotado. El saldo, las transiciones y el paso automático a `overdue` se validan en servidor; no se aceptan sobrepagos.
+- Purga: solo iglesias `archived` con `archived_at` hasta la fecha de corte. Conserva auditoría, facturas y pagos; elimina membresías, personas y demás datos tenant.
+- Auditoría de dominio completa, soft delete, RLS y validación semántica profunda de JSONB siguen pendientes. La auditoría de plataforma cubre cambios de iglesia, estados, suscripciones, overrides, facturación y purga.
 
 ## Decisiones pendientes
 
