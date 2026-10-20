@@ -5,11 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\ChurchMembership;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request): View|RedirectResponse
+    public function __invoke(Request $request): Response|RedirectResponse
     {
         $memberships = ChurchMembership::query()
             ->with('church')
@@ -23,6 +24,18 @@ class DashboardController extends Controller
             return redirect()->route('churches.show', $memberships->first()->church);
         }
 
-        return view('dashboard', ['memberships' => $memberships]);
+        return Inertia::render('dashboard', [
+            'memberships' => $memberships->map(fn (ChurchMembership $membership): array => [
+                'id' => $membership->getKey(),
+                'role' => $membership->role,
+                'church' => [
+                    'name' => $membership->church->name,
+                    'slug' => $membership->church->slug,
+                    'countryCode' => $membership->church->country_code,
+                    'currencyCode' => $membership->church->currency_code,
+                    'timezone' => $membership->church->timezone,
+                ],
+            ])->values(),
+        ]);
     }
 }

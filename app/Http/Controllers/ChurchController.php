@@ -3,20 +3,39 @@
 namespace App\Http\Controllers;
 
 use App\Models\Church;
+use App\Models\ChurchCurrency;
 use App\Models\ChurchMembership;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class ChurchController extends Controller
 {
-    public function show(Request $request, Church $church): View
+    public function show(Request $request, Church $church): Response
     {
         /** @var ChurchMembership $membership */
         $membership = $request->attributes->get('currentMembership');
 
-        return view('churches.show', [
-            'church' => $church,
-            'membership' => $membership,
+        return Inertia::render('churches/show', [
+            'church' => [
+                'name' => $church->name,
+                'slug' => $church->slug,
+                'countryCode' => $church->country_code,
+                'currencyCode' => $church->currency_code,
+                'timezone' => $church->timezone,
+            ],
+            'membership' => [
+                'role' => $membership->role,
+            ],
+            'currencies' => $church->currencies()
+                ->orderByDesc('is_default')
+                ->orderBy('currency_code')
+                ->get()
+                ->map(fn (ChurchCurrency $currency): array => [
+                    'code' => $currency->currency_code,
+                    'isDefault' => $currency->is_default,
+                ])
+                ->values(),
         ]);
     }
 }

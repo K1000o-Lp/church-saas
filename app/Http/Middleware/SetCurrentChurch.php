@@ -4,9 +4,11 @@ namespace App\Http\Middleware;
 
 use App\Models\Church;
 use App\Models\ChurchMembership;
+use App\Support\Church\ChurchStatus;
 use App\Support\Tenancy\CurrentChurch;
 use Closure;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 class SetCurrentChurch
@@ -27,7 +29,7 @@ class SetCurrentChurch
             $church = $this->selectedChurch($request);
         }
 
-        abort_unless($church instanceof Church && $church->status === 'active', 404);
+        abort_unless($church instanceof Church, 404);
 
         $membership = ChurchMembership::query()
             ->where('church_id', $church->getKey())
@@ -36,6 +38,19 @@ class SetCurrentChurch
             ->first();
 
         abort_unless($membership !== null, 404);
+
+        if (ChurchStatus::blocksAccess($church->status)) {
+            $request->session()->forget('current_church_id');
+
+            return Inertia::render('churches/unavailable', [
+                'church' => [
+                    'name' => $church->name,
+                    'slug' => $church->slug,
+                ],
+                'status' => $church->status,
+                'statusLabel' => ChurchStatus::label($church->status),
+            ])->toResponse($request)->setStatusCode(403);
+        }
 
         $request->session()->put('current_church_id', $church->getKey());
         $request->attributes->set('currentMembership', $membership);

@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToChurch;
+use App\Models\Concerns\EnforcesPlanLimits;
+use App\Support\Plans\PlanResources;
 use App\Support\Tenancy\CurrentChurch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -11,12 +13,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Event extends Model
 {
     use BelongsToChurch;
+    use EnforcesPlanLimits;
 
     protected $fillable = ['title', 'description', 'location', 'starts_at', 'ends_at', 'timezone', 'status'];
 
     protected function casts(): array
     {
         return ['starts_at' => 'datetime', 'ends_at' => 'datetime'];
+    }
+
+    public static function planResource(): string
+    {
+        return PlanResources::EVENTS_PER_MONTH;
     }
 
     public function segments(): BelongsToMany
