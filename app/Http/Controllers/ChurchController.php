@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Church;
 use App\Models\ChurchCurrency;
 use App\Models\ChurchMembership;
+use App\Models\Invoice;
+use App\Support\Billing\InvoicePresenter;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -15,6 +17,25 @@ class ChurchController extends Controller
     {
         /** @var ChurchMembership $membership */
         $membership = $request->attributes->get('currentMembership');
+
+        $canViewBilling = in_array($membership->role, ['admin', 'finance'], true);
+        $billing = null;
+
+        if ($canViewBilling) {
+            Invoice::markOverdue($church);
+
+            $billing = [
+                'canView' => true,
+                'invoices' => $church->invoices()
+                    ->with('payments')
+                    ->orderByDesc('issued_at')
+                    ->orderByDesc('id')
+                    ->limit(20)
+                    ->get()
+                    ->map(fn (Invoice $invoice): array => InvoicePresenter::church($invoice))
+                    ->values(),
+            ];
+        }
 
         return Inertia::render('churches/show', [
             'church' => [
@@ -36,6 +57,7 @@ class ChurchController extends Controller
                     'isDefault' => $currency->is_default,
                 ])
                 ->values(),
+            'billing' => $billing,
         ]);
     }
 }

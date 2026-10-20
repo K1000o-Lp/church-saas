@@ -217,3 +217,63 @@ export type AdminSubscriptionDetail = {
     notes: string | null;
     assignedBy: string | null;
 };
+
+export type InvoiceStatusValue = 'issued' | 'paid' | 'void' | 'overdue';
+
+export type PaymentMethodValue = 'cash' | 'transfer' | 'card' | 'mobile_payment' | 'other';
+
+export type InvoiceStatusOption = {
+    value: InvoiceStatusValue;
+    label: string;
+};
+
+export type PaymentMethodOption = {
+    value: PaymentMethodValue;
+    label: string;
+};
+
+export type InvoicePayment = {
+    id: number;
+    amountMinor: number;
+    currencyCode: string;
+    method: PaymentMethodValue;
+    methodLabel: string;
+    reference: string | null;
+    notes: string | null;
+    paidAt: string | null;
+    recordedBy: string | null;
+};
+
+export type ChurchInvoice = {
+    id: number;
+    number: string;
+    status: InvoiceStatusValue;
+    statusLabel: string;
+    currencyCode: string;
+    amountMinor: number;
+    paidMinor: number;
+    remainingMinor: number;
+    description: string | null;
+    notes: string | null;
+    issuedAt: string | null;
+    dueAt: string | null;
+    paidAt: string | null;
+    voidedAt: string | null;
+    voidReason: string | null;
+    payments: InvoicePayment[];
+};
+
+export type AdminInvoice = ChurchInvoice & {
+    church: {
+        id: number | null;
+        name: string;
+        slug: string;
+        exists: boolean;
+    };
+    issuedBy: string | null;
+};
+
+export type ChurchBilling = {
+    canView: true;
+    invoices: ChurchInvoice[];
+} | null;

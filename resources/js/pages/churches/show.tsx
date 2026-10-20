@@ -9,10 +9,12 @@ import {
     ShieldCheck,
 } from 'lucide-react';
 
+import { InvoiceStatusBadge } from '@/components/admin/invoice-status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AppLayout } from '@/layouts/app-layout';
-import type { ChurchCurrencySummary, ChurchSummary } from '@/types';
+import { formatDate, formatMoneyMinor } from '@/lib/format';
+import type { ChurchBilling, ChurchCurrencySummary, ChurchSummary } from '@/types';
 
 type Props = {
     church: ChurchSummary;
@@ -20,6 +22,7 @@ type Props = {
         role: string;
     };
     currencies: ChurchCurrencySummary[];
+    billing: ChurchBilling;
 };
 
 function Detail({
@@ -46,7 +49,7 @@ function Detail({
     );
 }
 
-export default function ChurchShow({ church, membership, currencies }: Props) {
+export default function ChurchShow({ church, membership, currencies, billing }: Props) {
     return (
         <AppLayout>
             <Head title={church.name} />
@@ -156,6 +159,87 @@ export default function ChurchShow({ church, membership, currencies }: Props) {
                     </CardContent>
                 </Card>
             </div>
+
+            {billing && (
+                <Card className="mt-6">
+                    <CardHeader>
+                        <CardTitle>Historial de facturas</CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                            Facturación manual en USD. Los pagos y estados los registra la
+                            administración de la plataforma.
+                        </p>
+                    </CardHeader>
+                    <CardContent>
+                        {billing.invoices.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                Todavía no hay facturas emitidas para esta iglesia.
+                            </p>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full min-w-[44rem] text-sm">
+                                    <thead>
+                                        <tr className="border-b border-border text-left text-xs tracking-wide text-muted-foreground uppercase">
+                                            <th className="pb-3 pr-4 font-semibold">Factura</th>
+                                            <th className="pb-3 pr-4 font-semibold">Estado</th>
+                                            <th className="pb-3 pr-4 text-right font-semibold">
+                                                Total
+                                            </th>
+                                            <th className="pb-3 pr-4 text-right font-semibold">
+                                                Pagado
+                                            </th>
+                                            <th className="pb-3 pr-4 text-right font-semibold">
+                                                Saldo
+                                            </th>
+                                            <th className="pb-3 font-semibold">Emitida</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border">
+                                        {billing.invoices.map((invoice) => (
+                                            <tr key={invoice.id}>
+                                                <td className="py-3 pr-4">
+                                                    <p className="font-mono text-xs font-semibold">
+                                                        {invoice.number}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {invoice.description ?? 'Sin concepto'}
+                                                    </p>
+                                                </td>
+                                                <td className="py-3 pr-4">
+                                                    <InvoiceStatusBadge
+                                                        status={invoice.status}
+                                                        label={invoice.statusLabel}
+                                                    />
+                                                </td>
+                                                <td className="py-3 pr-4 text-right tabular-nums">
+                                                    {formatMoneyMinor(
+                                                        invoice.amountMinor,
+                                                        invoice.currencyCode,
+                                                    )}
+                                                </td>
+                                                <td className="py-3 pr-4 text-right tabular-nums">
+                                                    {formatMoneyMinor(
+                                                        invoice.paidMinor,
+                                                        invoice.currencyCode,
+                                                    )}
+                                                </td>
+                                                <td className="py-3 pr-4 text-right tabular-nums">
+                                                    {formatMoneyMinor(
+                                                        invoice.remainingMinor,
+                                                        invoice.currencyCode,
+                                                    )}
+                                                </td>
+                                                <td className="py-3 text-muted-foreground">
+                                                    {formatDate(invoice.issuedAt)}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
         </AppLayout>
     );
 }
