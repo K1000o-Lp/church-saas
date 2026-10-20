@@ -2,7 +2,7 @@
 
 ## Estado y alcance
 
-Existe scaffold Laravel 12 con modelos Eloquent, contexto/middleware de tenancy y migraciones iniciales escritas. Hay autenticación web básica por sesión, selección de iglesia y autorización de membresía por petición; no hay frontend de producto completo, invitaciones, recuperación de contraseña, políticas de rol/permiso, infraestructura desplegada ni integraciones productivas. No ejecutar migraciones ni intentar conexiones hasta configurar explícitamente PostgreSQL.
+Existe scaffold Laravel 12 con modelos Eloquent, contexto/middleware de tenancy y migraciones iniciales escritas. Hay autenticación web por sesión, selección de iglesia, autorización de membresía por petición, onboarding autoservicio de iglesia con membresía y monedas, backoffice exclusivo de plataforma en `/admin` con auditoría y administración de estados, planes/límites/funciones con entitlements por iglesia, y una base de frontend Inertia + React + TypeScript con login, panel de iglesias y contexto de iglesia. Faltan invitaciones, recuperación de contraseña, políticas de rol/permiso, facturación, MFA, infraestructura desplegada e integraciones productivas. No ejecutar migraciones ni intentar conexiones hasta configurar explícitamente PostgreSQL.
 
 La plataforma objetivo es un SaaS para iglesias, con foco inicial en Venezuela y Colombia. El alcance por validar incluye gestión de personas y campos personalizados, segmentos, eventos con RSVP y asistencia, diezmos/ofrendas, consolidación pastoral, servidores y servicios/cultos, y eventualmente automatizaciones e integraciones de pago.
 
@@ -12,7 +12,8 @@ El documento expresa dirección y restricciones propuestas, no decisiones irreve
 
 - Backend: Laravel 12 y versión de PHP compatible que se confirme al preparar el entorno.
 - Base relacional: PostgreSQL.
-- Colas, cache, almacenamiento, correo y frontend: por seleccionar conforme a necesidades operativas y presupuesto.
+- Frontend: Inertia v3, React 19, TypeScript estricto, Vite 7, Tailwind CSS v4 y primitivas shadcn/ui sobre Radix. El servidor conserva rutas, sesión, validación y autorización; el detalle está en [Frontend](frontend.md).
+- Colas, cache, almacenamiento y correo: por seleccionar conforme a necesidades operativas y presupuesto.
 - JSONB y GIN son específicos de PostgreSQL en este diseño. Migraciones, operadores, índices y consultas que los usen deben probarse contra PostgreSQL; SQLite no valida su semántica ni rendimiento. No se promete portabilidad a motores alternativos.
 
 ## Tenancy: base compartida y datos aislados lógicamente
@@ -29,6 +30,101 @@ La base implementada usa `CurrentChurch`, registrado como binding scoped de Lara
 
 Colas, tareas programadas, webhooks y comandos no heredan una petición confiable. Cada mensaje debe incluir referencias mínimas al tenant y sujeto de autorización requeridos; al ejecutarse, volver a comprobar existencia, estado y autorización conforme al caso. Para jobs se debe establecer y limpiar contexto explícitamente dentro del ciclo del job; el middleware HTTP no resuelve ese caso. Archivos, cache keys, eventos, exportaciones, notificaciones, auditoría y métricas deben quedar particionados o etiquetados por tenant. No recuperar contexto de tenant desde una variable global residual.
 
+## Onboarding de iglesias
+
+La creación de iglesias es **autoservicio para el usuario autenticado**; el backoffice de
+plataforma administra tenants existentes, pero no es el mecanismo de alta. El usuario con
+sesión inicia el onboarding en `/onboarding/church` y, en una sola transacción, se crean la
+iglesia, su membresía `admin` activa, la suscripción al plan Comunidad y el catálogo de monedas
+(principal como default y adicionales opcionales dentro del límite del plan inicial). Después se
+guarda `current_church_id` en sesión y se redirige a la iglesia; a partir de ahí aplican las
+mismas comprobaciones de membresía que en cualquier otra ruta.
+
+Decisiones asociadas:
+
+- El creador recibe el rol `admin` únicamente en la iglesia creada. La administración de
+  plataforma usa una identidad separada, no un rol dentro de `users`.
+- Un usuario con membresías activas puede crear iglesias adicionales y queda como `admin` de
+  cada una. Esto evita bloquear casos de líderes con más de una iglesia.
+- El país se limita inicialmente a Venezuela y Colombia; la zona horaria se valida como IANA.
+  El catálogo inicial de monedas es USD, VES, COP y EUR.
+- La creación es transaccional: si falla la membresía o una moneda, no queda iglesia parcial.
+- Invitaciones, recuperación de contraseña, transferencia de propiedad, facturación y MFA
+  quedan pendientes y no se simulan en la interfaz. Los planes se asignan automáticamente al
+  crear la iglesia y los límites del plan inicial se validan también durante el onboarding.
+
+## Backoffice de plataforma
+
+La administración de tenants vive en `/admin` y usa una identidad **exclusiva** en
+`platform_admins`, con su propio guard `platform`, login, layout y ciclo de sesión. Esa cuenta
+no existe en `users`, no puede autenticarse en `/dashboard` y no tiene membresías de iglesia.
+Los correos de plataforma deben ser distintos de los correos de usuarios de iglesia. Las
+cuentas se crean y desactivan por comando Artisan; no hay registro público.
+
+Alcance implementado:
+
+- Listado, búsqueda, filtro y detalle de iglesias con metadatos y conteos agregados. No se
+  exponen personas, correos, notas pastorales ni montos.
+- Edición de nombre, país, zona horaria, locale y monedas. El slug es inmutable. Una moneda con
+  contribuciones asociadas no se puede retirar.
+- Estados `active`, `suspended`, `inactive` y `archived`, con motivo, actor y fecha. Cualquier
+  estado distinto de `active` bloquea el acceso en la siguiente petición. Los miembros ven una
+  página de cuenta suspendida/inactiva/archivada; los no miembros reciben 404.
+- Las iglesias archivadas son de solo lectura hasta su reactivación y quedan fuera del listado
+  por defecto.
+- Cada cambio de metadatos o estado se registra en `platform_audit_entries` con actor, IP,
+  valores anteriores y nuevos.
+- No hay impersonación ni borrado físico desde el backoffice.
+
+Provisionamiento:
+
+```bash
+php artisan platform:admin:create admin@example.com --name="Admin Plataforma"
+php artisan platform:admin:deactivate admin@example.com
+```
+
+Pendiente para fases posteriores: facturación manual y purga auditada de iglesias archivadas.
+MFA queda explícitamente para una fase de endurecimiento antes de producción.
+
+## Planes, límites y funciones
+
+La matriz aprobada se sincroniza desde `App\Support\Plans\PlanMatrix` y vive en `plans`,
+`plan_limits` y `plan_features`. Cada iglesia tiene una fila en `church_subscriptions`; al crear
+una iglesia recibe automáticamente **Comunidad**, y la migración de datos asigna ese plan a las
+iglesias existentes. El comando `php artisan plans:sync` vuelve a aplicar la matriz de forma
+idempotente y completa suscripciones faltantes.
+
+Límites por plan (valores aprobados, base mensual para eventos y ejecuciones):
+
+| Recurso | Comunidad | Crecimiento | Ministerio Pro |
+| --- | ---: | ---: | ---: |
+| Personas | 100 | 500 | 2.500 |
+| Usuarios activos | 5 | 15 | 50 |
+| Monedas | 1 | 4 | 8 |
+| Eventos/mes | 20 | 100 | 500 |
+| Workflows | 0 | 10 | 50 |
+| Ejecuciones/mes | 0 | 1.000 | 10.000 |
+| Integraciones | 0 | 2 | 10 |
+
+Funciones: Crecimiento habilita multi-moneda, voluntarios y pipeline pastoral; Ministerio Pro
+habilita además white-label, automatización y pagos. Comunidad no incluye funciones opcionales.
+
+`Entitlements` resuelve primero el override de la iglesia (`church_limit_overrides`,
+`church_feature_overrides`) y, si no existe, el valor del plan. Un override de límite con valor
+nulo significa ilimitado; un override de función puede habilitar o deshabilitar una capacidad.
+`ChurchUsage` calcula el consumo en servidor: personas no archivadas, membresías activas,
+monedas, eventos creados en el mes, workflows, ejecuciones iniciadas en el mes e integraciones
+(aún sin módulo, por lo que el uso es 0).
+
+Los modelos tenant que consumen límites (`Person`, `Event`, `Workflow`, `WorkflowRun`,
+`ChurchCurrency` y `ChurchMembership`) aplican el límite al crear. La edición y lectura de
+registros existentes no se bloquean. Tras un downgrade, los datos permanecen y las nuevas altas
+del recurso excedido se rechazan. Las funciones fuera del plan se bloquean con
+`plan.feature:<feature>`; deshabilitarlas no borra datos. El backoffice de plataforma puede
+gestionar suscripción y overrides con auditoría en `platform_audit_entries`. La pantalla
+`/churches/{church}/plan` está disponible para roles `admin` y `finance` con plan actual, uso,
+límites, funciones y estado de suscripción.
+
 ## Fail-closed y autorización
 
 - Si falta el tenant, hay ambigüedad, membresía inválida o no se puede comprobar autorización, denegar por defecto; nunca recurrir a un tenant por omisión.
@@ -38,7 +134,7 @@ Colas, tareas programadas, webhooks y comandos no heredan una petición confiabl
 - Filtrar por `church_id` explícitamente en repositorios/consultas tenant-owned. Evaluar restricciones compuestas y, si procede, Row-Level Security de PostgreSQL como defensa adicional, sin reemplazar la autorización de aplicación.
 - Auditar acciones sensibles con actor, tenant, objeto, hora y resultado, limitando los datos personales y secretos almacenados en la auditoría.
 
-**Excepciones deliberadas a `church_id`:** `users` es identidad global; `churches` es el registro global de tenants; `church_memberships` es la tabla global de acceso/control (`church_id` indexado y relación user–church). Todo dominio tenant-owned implementado sí incluye `church_id`.
+**Excepciones deliberadas a `church_id`:** `users` es identidad global; `platform_admins` es identidad global de backoffice; `churches` es el registro global de tenants; `church_memberships` es la tabla global de acceso/control (`church_id` indexado y relación user–church); `platform_audit_entries` referencia `church_id` sin FK para conservar historial tras una purga. Todo dominio tenant-owned implementado sí incluye `church_id`.
 
 ## CRM y campos personalizados
 
@@ -46,13 +142,31 @@ Las personas usarán columnas relacionales para atributos centrales y `people.cu
 
 ## Capas propuestas
 
-1. **Interfaz/API:** validación de entrada, autenticación y respuestas; no contiene reglas de autorización delegadas al cliente.
+1. **Interfaz/API:** rutas y controladores Laravel, validación de entrada, autenticación y respuestas Inertia; las páginas React son presentacionales y no contienen reglas de autorización delegadas al cliente.
 2. **Aplicación:** casos de uso transaccionales, autorización, contexto tenant explícito y coordinación de trabajos.
 3. **Dominio:** reglas de personas, eventos, finanzas, voluntarios, servicios y workflows; invariantes de dinero, estado e idempotencia.
 4. **Persistencia e integraciones:** acceso PostgreSQL, almacenamiento, cola y adaptadores de proveedores; los adaptadores no eluden tenant ni políticas.
 5. **Operación:** configuración por entorno, secretos, logs, métricas, alertas, backups y procedimientos de recuperación.
 
 La elección concreta de patrones Laravel (por ejemplo, acciones, servicios o repositorios) queda abierta; evitar abstracciones que no resuelvan una necesidad real.
+
+## Frontend y contrato con el servidor
+
+El frontend usa Inertia con React y TypeScript. Las páginas viven en `resources/js/pages` y
+se registran desde controladores con `Inertia::render`; no se agregan vistas Blade de
+producto ni una API paralela solo para la interfaz. El root view es
+`resources/views/app.blade.php`.
+
+La fuente de verdad del estado de servidor son los props de Inertia. `HandleInertiaRequests`
+comparte identidad mínima, iglesia resuelta y flash; cada controlador mapea solo los campos
+que la página necesita. El cliente no envía `church_id` como prueba de acceso, no calcula
+permisos ni decide montos. La validación y autorización se repiten en Laravel.
+
+El sistema visual usa tokens semánticos en `resources/css/app.css` (verde profundo, dorado
+cálido, papel cálido, claro/oscuro), Instrument Sans para UI y Fraunces para títulos. El
+layout autenticado usa sidebar y topbar en escritorio, y bottom nav en móvil. Las reglas de
+componentes, estado, accesibilidad y verificación están en [Frontend](frontend.md) y
+[`AGENTS.md`](../../AGENTS.md).
 
 ## Operación para Venezuela y Colombia
 
@@ -75,6 +189,8 @@ Priorizar pruebas de dominio, integración y autorización, con casos entre dos 
 
 Probar jobs bajo reintento, entrega duplicada, concurrencia, contexto tenant faltante y fallos de proveedor; probar exactitud financiera y zonas horarias. Mantener fixtures y datos de prueba sintéticos, sin información pastoral o financiera real.
 
+En frontend, `npm run typecheck` y `npm run build` son obligatorios. Las rutas y controladores Inertia se prueban con `assertInertia` sobre componente, props y sesión, no con aserciones de HTML renderizado. Las pruebas de componentes y E2E están pendientes de adopción; al incorporarlas deben cubrir login, creación de iglesia, membresías, monedas y aislamiento entre iglesias.
+
 ## Riesgos principales
 
 - Fuga de datos por filtro tenant ausente, estado residual en workers o URL de archivos sin control.
@@ -96,7 +212,7 @@ Mitigaciones: validar tempranamente con usuarios/proveedores, mantener registros
 5. ¿Qué proveedor y modalidad son viables por país: registro manual, redirección, API, conciliación o solo referencia externa?
 6. ¿Qué reglas locales aplican a datos pastorales, donaciones, recibos, conservación y eliminación? ¿Qué asesoría local se requiere?
 7. ¿Qué alcance entra al MVP y qué límites de personas/usuarios/almacenamiento se justifican por investigación?
-8. ¿Qué tecnología de frontend, cola, cache y almacenamiento se elige, y qué objetivos de disponibilidad/recuperación son necesarios?
+8. ¿Qué tecnología de cola, cache y almacenamiento se elige, y qué objetivos de disponibilidad/recuperación son necesarios? El frontend ya está decidido: Inertia + React + TypeScript; queda abierto si se habilita SSR.
 9. ¿Qué modelo de campos personalizados y segmentos satisface flexibilidad sin consultas difíciles de proteger o mantener?
 10. ¿Qué capacidades externas podrá ejecutar un workflow y qué consentimiento, límites, revisión y mecanismo de cancelación hacen falta?
 

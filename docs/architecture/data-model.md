@@ -20,13 +20,17 @@ Convenciones a validar antes de implementar:
 
 ### Identidad y tenant
 
-- **Church:** iglesia/tenant; nombre, slug único, país, zona horaria, moneda primaria, locale (por defecto `es`), settings JSONB y estado. `settings` debe ser un objeto JSON y `status` está acotado a `active`, `inactive`, `suspended`. País, zona horaria, locale y monedas requieren validación de reglas locales.
+- **Church:** iglesia/tenant; nombre, slug único, país, zona horaria, moneda primaria, locale (por defecto `es`), settings JSONB y estado. `settings` debe ser un objeto JSON y `status` está acotado a `active`, `inactive`, `suspended`, `archived`. También guarda `status_reason`, `status_changed_at`, `status_changed_by_platform_admin_id` y `archived_at` para la administración de plataforma. País, zona horaria, locale y monedas requieren validación de reglas locales. El slug es inmutable desde el backoffice.
 - **`church_currencies`:** códigos de moneda admitidos por iglesia, marca `is_default` y unicidad por iglesia/código. Un índice único parcial garantiza como máximo un default por iglesia. `churches.currency_code` sigue siendo una invariante de aplicación y no una FK, para evitar una dependencia circular entre ambas tablas.
 - **User:** identidad autenticable; puede ser miembro de más de una iglesia si producto lo requiere.
+- **PlatformAdmin:** identidad exclusiva del backoffice de plataforma; nombre, correo único, contraseña, estado activo y último acceso. Vive fuera de `users`, usa el guard `platform` y no tiene membresías de iglesia. Su correo debe ser distinto de los correos de `users`.
 - **ChurchMembership:** relación user–church, estado y rol/permisos asignados. No confundir pertenencia con rol global.
-- Excepciones sin `church_id`: `users` y `churches` son globales; `church_memberships` es tabla de acceso/control global, tiene `church_id` indexado y unicidad por iglesia/usuario, y no tiene scope de tenant para permitir la comprobación previa a establecer el contexto.
+- Excepciones sin `church_id`: `users`, `platform_admins` y `churches` son globales; `church_memberships` es tabla de acceso/control global, tiene `church_id` indexado y unicidad por iglesia/usuario, y no tiene scope de tenant para permitir la comprobación previa a establecer el contexto.
 - **Role/Permission** (o mecanismo equivalente): permisos acotados a una iglesia y sujetos a decisiones de producto. Roles iniciales aún no definidos.
-- **AuditEntry:** actor, tenant, tipo de acción, referencia al objeto, instante, resultado y metadatos mínimos; evitar copias de secretos o notas pastorales.
+- **PlatformAuditEntry:** actor de plataforma, `church_id` nullable sin FK para conservar historial tras una purga, acción, referencia al objeto, metadatos JSONB en forma de objeto, IP, user agent e instante. Registra cambios de metadatos, estados, suscripciones y overrides; no debe copiar secretos ni contenido pastoral.
+- **Plan / PlanLimit / PlanFeature:** catálogo global de planes. `plans.key` es único y guarda nombre, descripción, precio mensual en unidad menor, moneda, intervalo y orden. `plan_limits` define un valor por recurso y plan; `limit_value NULL` significa ilimitado. `plan_features` enumera las funciones incluidas. La matriz inicial se carga desde `PlanMatrix` y se puede reaplicar con `plans:sync`.
+- **ChurchSubscription:** plan vigente de una iglesia, uno por iglesia (`church_id` único), con estado `active`, `past_due` o `cancelled`, fechas de inicio/cambio/fin, notas y actor de plataforma. No usa scope tenant para que el backoffice pueda consultarla; la autorización se aplica en controladores y servicios.
+- **ChurchLimitOverride / ChurchFeatureOverride:** ajustes por iglesia que reemplazan el valor del plan. Únicos por `(church_id, resource)` y `(church_id, feature)`. Un límite `NULL` es ilimitado; una función puede forzarse habilitada o deshabilitada sin borrar datos. Registran actor y nota.
 
 ### `people`, CRM y consolidación pastoral
 
@@ -104,7 +108,10 @@ JSONB puede servir para settings, valores personalizados, reglas de segmentos y 
 - JSONB de configuración/definición debe ser objeto donde corresponde (`churches.settings`, `people.custom_fields`, `segments.rules`, `workflow_versions.definition`).
 - Catálogos iniciales de estado para iglesias, membresías, personas, eventos, RSVP, asistencia, contribuciones, fondos, seguimiento, servicios, voluntarios y workflows. Son valores iniciales, no una decisión de producto cerrada; ampliarlos requiere una migración. `church_memberships.role` y `workflows.trigger_type` siguen libres hasta definir roles y tipos de disparador.
 - No se impone unicidad de `position` en etapas/ítems de servicio: el default `0` y la reordenación harían conflictos prematuros. Queda como invariante de aplicación.
-- Auditoría, soft delete, RLS y validación semántica profunda de JSONB siguen pendientes.
+- Planes: recursos acotados (`people`, `active_users`, `currencies`, `events_per_month`, `workflows`, `executions_per_month`, `integrations`) y funciones acotadas (`multi_currency`, `volunteers`, `pastoral_pipeline`, `white_label`, `automation`, `payments`); valores de límite no negativos o `NULL` para ilimitado.
+- Suscripción única por iglesia y asignación automática del plan Comunidad al crear la iglesia; la migración de datos completa iglesias previas.
+- Límites duros en creación para personas, usuarios activos, monedas, eventos, workflows y ejecuciones. La edición y la lectura existentes no se bloquean; un downgrade conserva datos y bloquea nuevas altas del recurso excedido.
+- Auditoría de dominio completa, soft delete, RLS y validación semántica profunda de JSONB siguen pendientes. La auditoría de plataforma cubre cambios de iglesia, estados, suscripciones y overrides; facturación y purga quedan para fases posteriores.
 
 ## Decisiones pendientes
 

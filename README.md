@@ -8,9 +8,26 @@ Las capacidades, integraciones, límites y precios descritos aquí son objetivos
 
 ## Estado actual
 
-El scaffold Laravel 12 y el primer código de modelos, contexto de tenancy y migraciones ya están escritos. El esquema se ejecutó en un PostgreSQL local de desarrollo y las pruebas de esquema usan una base PostgreSQL separada. Existe autenticación web por sesión con login/logout, selección de iglesia por membresía y resolución de tenant por petición; no hay frontend de producto, invitaciones, recuperación de contraseña, runner de workflows, pagos ni integraciones productivas.
+El scaffold Laravel 12 y el primer código de modelos, contexto de tenancy y migraciones ya están escritos. El esquema se ejecutó en un PostgreSQL local de desarrollo y las pruebas de esquema usan una base PostgreSQL separada. Existe autenticación web por sesión con login/logout, selección de iglesia por membresía, resolución de tenant por petición, onboarding autoservicio que crea iglesia, membresía `admin` y monedas en una transacción, backoffice exclusivo de plataforma en `/admin` con auditoría, administración de estados y metadatos, planes/límites/funciones con suscripción y overrides por iglesia, y una base de frontend Inertia + React + TypeScript con login, panel de iglesias, onboarding, pantalla de plan y contexto de iglesia. Faltan invitaciones, recuperación de contraseña, facturación, MFA, runner de workflows, pagos e integraciones productivas. Las decisiones de onboarding, backoffice y planes están documentadas en [`docs/architecture/overview.md`](docs/architecture/overview.md#onboarding-de-iglesias), [`docs/architecture/overview.md`](docs/architecture/overview.md#backoffice-de-plataforma) y [`docs/architecture/overview.md`](docs/architecture/overview.md#planes-límites-y-funciones).
+
+La matriz de planes se aplica con la migración de datos y puede resincronizarse de forma idempotente; las iglesias sin suscripción reciben Comunidad:
+
+```bash
+php artisan plans:sync
+```
+
+El backoffice se provisiona por comando, nunca por registro público:
+
+```bash
+php artisan platform:admin:create admin@example.com --name="Admin Plataforma"
+php artisan platform:admin:deactivate admin@example.com
+```
+
+La cuenta de plataforma es exclusiva: vive en `platform_admins`, usa el guard `platform` y no puede acceder a `/dashboard` ni a datos pastorales o financieros de las iglesias.
 
 **PostgreSQL es obligatorio para validar el esquema.** JSONB, el índice GIN en `people.custom_fields`, el `CHECK` monetario y el trigger de inmutabilidad no existen en SQLite; no uses SQLite para ejecutar estas migraciones ni para pruebas de persistencia.
+
+El frontend usa Inertia v3, React 19, TypeScript estricto, Vite 7, Tailwind CSS v4 y primitivas shadcn/ui sobre Radix. El servidor conserva rutas, sesión, validación y autorización; las páginas React no deciden tenant ni permisos. La guía de componentes y el sistema visual están en [`docs/architecture/frontend.md`](docs/architecture/frontend.md) y [`AGENTS.md`](AGENTS.md).
 
 `composer setup` instala dependencias, prepara `.env` desde `.env.example` si falta, genera la clave y construye frontend. La conexión empieza como `DB_CONNECTION=unconfigured`; configura la instancia y credenciales PostgreSQL en `.env` y selecciona explícitamente `pgsql` cuando el servicio esté listo. **Ni `composer setup` ni `composer install` ejecutan migraciones automáticamente**; ejecútalas solo como paso deliberado tras configurar y verificar PostgreSQL. Sesión y cache locales usan archivos, y la cola usa `sync`; cambia la cola a un driver durable al desplegar.
 
@@ -52,6 +69,7 @@ docker compose up -d
 
 - [Plan de implementación](docs/implementation-plan.md): fases, dependencias, entregables y criterios para avanzar.
 - [Visión de arquitectura](docs/architecture/overview.md): alcance, tenancy, seguridad, operación y decisiones pendientes.
+- [Frontend](docs/architecture/frontend.md): Inertia + React, contrato de props, sistema de diseño, accesibilidad y verificación.
 - [Modelo de datos](docs/architecture/data-model.md): entidades y relaciones persistidas por las migraciones iniciales, con decisiones todavía abiertas.
 - [Workflows](docs/architecture/workflows.md): diseño propuesto para automatizaciones durables y ejecutadas por nodos.
 

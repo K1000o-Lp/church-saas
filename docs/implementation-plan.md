@@ -1,6 +1,6 @@
 # Plan de implementación
 
-Este plan ordena el trabajo desde la validación del problema hasta una primera operación segura. El scaffold Laravel 12, modelos base, contexto tenant y migraciones iniciales ya están escritos; el esquema se ejecutó en un PostgreSQL local de desarrollo, mientras la infraestructura de despliegue sigue pendiente. Instalar Composer o ejecutar `composer setup` no debe migrar ni conectarse a PostgreSQL: primero se crea/edita `.env` con credenciales explícitas y se prepara/verifica PostgreSQL; la migración es un paso manual posterior.
+Este plan ordena el trabajo desde la validación del problema hasta una primera operación segura. El scaffold Laravel 12, modelos base, contexto tenant, migraciones iniciales y la base de frontend Inertia + React + TypeScript ya están escritos; el esquema se ejecutó en un PostgreSQL local de desarrollo, mientras la infraestructura de despliegue sigue pendiente. Instalar Composer o ejecutar `composer setup` no debe migrar ni conectarse a PostgreSQL: primero se crea/edita `.env` con credenciales explícitas y se prepara/verifica PostgreSQL; la migración es un paso manual posterior.
 
 ## Fases y dependencias
 
@@ -45,17 +45,21 @@ Este plan ordena el trabajo desde la validación del problema hasta una primera 
 **Depende de:** fase 1 para diseño. La fase 2 es precondición para validar persistencia e integración contra la base objetivo, no para diseñar ni escribir código/migraciones.
 
 **Trabajo y entregables:**
-- Autenticación web por sesión, dashboard, selección de iglesia y verificación de membresía por petición ya están implementados; quedan invitaciones, recuperación de contraseña, roles/permisos, políticas/gates y auditoría.
+- Autenticación web por sesión, dashboard, selección de iglesia, verificación de membresía por petición, onboarding autoservicio de iglesia (membresía `admin` y monedas), fase 1 del backoffice de plataforma (`/admin`, identidad exclusiva, estados, metadatos y auditoría) y fase 2 de planes, límites, uso, entitlements y overrides ya están implementados sobre Inertia + React + TypeScript; quedan invitaciones, recuperación de contraseña, roles/permisos formales, facturación, MFA y la aplicación de límites en los módulos tenant aún no construidos.
+- Mantener el contrato de props Inertia: identidad mínima, iglesia resuelta y flash; cada controlador mapea solo los campos necesarios. Ver [Frontend](architecture/frontend.md) y [`AGENTS.md`](../AGENTS.md).
 - Extender la resolución de tenant por petición, contexto explícito en procesos asíncronos y autorización fail-closed.
 - Incorporar políticas/gates, auditoría para acciones sensibles y pruebas de aislamiento entre iglesias.
 
-**Criterios de aceptación:** petición sin tenant válido, usuario sin membresía o contexto ambiguo no accede a datos tenant-owned; pruebas intentan leer, modificar y borrar registros de otra iglesia y son rechazadas; jobs no dependen de contexto implícito de la petición.
+**Criterios de aceptación:** petición sin tenant válido, usuario sin membresía o contexto ambiguo no accede a datos tenant-owned; pruebas intentan leer, modificar y borrar registros de otra iglesia y son rechazadas; jobs no dependen de contexto implícito de la petición; las páginas Inertia declaran componente y props en pruebas y `npm run typecheck`/`npm run build` pasan.
 
 ### 4. MVP pastoral y operación de iglesia
 
 **Depende de:** fase 3.
 
 **Trabajo y entregables:**
+- ~~Creación de iglesia, membresías y monedas admitidas, con validación en servidor y pantallas Inertia.~~ Implementado como onboarding autoservicio: el creador obtiene membresía `admin` y la iglesia, membresía y monedas se guardan en una transacción. Ver [Onboarding de iglesias](architecture/overview.md#onboarding-de-iglesias).
+- ~~Backoffice de plataforma fase 1.~~ Implementado en `/admin` con identidad exclusiva, listado/detalle/edición de metadatos, monedas, estados, archivado y auditoría. Ver [Backoffice de plataforma](architecture/overview.md#backoffice-de-plataforma).
+- ~~Planes, límites y funciones.~~ Implementados con matriz aprobada, suscripción por iglesia, uso en servidor, resolución de overrides, límites duros de creación, downgrade sin borrado, backoffice de suscripción/overrides y pantalla de plan para `admin`/`finance`. Ver [Planes, límites y funciones](architecture/overview.md#planes-límites-y-funciones). Quedan facturación manual y purga auditada.
 - Personas, contactos y campos personalizados con validación y permisos.
 - Segmentos, inicialmente con alcance acotado y reglas explicables; eventos, RSVP, registro de asistencia y seguimiento pastoral.
 - Servicios/cultos, equipos de servidores y asignaciones básicas según priorización.
@@ -98,14 +102,15 @@ Este plan ordena el trabajo desde la validación del problema hasta una primera 
 Un cambio o fase está listo cuando:
 
 1. Cumple los criterios de aceptación acordados y tiene revisión de producto/dominio cuando modifica flujos o datos.
-2. Incluye pruebas relevantes: autorización positiva y negativa, aislamiento tenant, errores y casos límite; cambios de JSONB/GIN se validan contra PostgreSQL real.
+2. Incluye pruebas relevantes: autorización positiva y negativa, aislamiento tenant, errores y casos límite; cambios de JSONB/GIN se validan contra PostgreSQL real; las páginas Inertia se verifican con `assertInertia`.
 3. Documenta migración, despliegue, reversión o mitigación y observabilidad cuando aplica; no requiere ejecutar cambios contra un entorno sin aprobación.
-4. No expone datos de otra iglesia, secretos ni información sensible en respuestas, logs, jobs o métricas.
-5. Las limitaciones conocidas y decisiones pendientes quedan explícitas; no se anuncia como entregada una capacidad que siga siendo objetivo.
+4. El frontend pasa `npm run typecheck` y `npm run build`, y no introduce datos de otra iglesia ni lógica de autorización en componentes.
+5. No expone datos de otra iglesia, secretos ni información sensible en respuestas, logs, jobs o métricas.
+6. Las limitaciones conocidas y decisiones pendientes quedan explícitas; no se anuncia como entregada una capacidad que siga siendo objetivo.
 
 ## Dependencias y bloqueos importantes
 
-- El scaffold Laravel 12, modelos base, migraciones, pruebas unitarias sin BD y pruebas de esquema PostgreSQL están escritos; el esquema se ejecutó en un PostgreSQL local y queda pendiente la configuración de entornos desplegados. `composer install`/`composer setup` pueden preparar `.env` y clave, pero no deben conectarse ni migrar; configurar PostgreSQL explícitamente antes del paso manual de migración.
+- El scaffold Laravel 12, modelos base, migraciones, pruebas unitarias sin BD, pruebas de esquema PostgreSQL y la base de frontend Inertia + React + TypeScript están escritos; el esquema se ejecutó en un PostgreSQL local y queda pendiente la configuración de entornos desplegados. `composer install`/`composer setup` pueden preparar `.env` y clave, pero no deben conectarse ni migrar; configurar PostgreSQL explícitamente antes del paso manual de migración.
 - Se puede diseñar y escribir código/migraciones sin BD. Completar la fase 2 y configurar explícitamente PostgreSQL antes de ejecutar migraciones, realizar pruebas de integración/persistencia o validar características PostgreSQL; no intentar conexiones antes de ello.
 - Precios, tiers, pasarelas, obligaciones legales y comportamiento fiscal requieren validación de mercado, proveedor y asesoría pertinente.
 - No iniciar automatizaciones que ejecuten acciones externas antes de aprobar límites de seguridad, autorización, idempotencia y consentimiento.
