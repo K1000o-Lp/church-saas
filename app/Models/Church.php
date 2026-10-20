@@ -77,6 +77,11 @@ class Church extends Model
         return $this->hasMany(PlatformAuditEntry::class, 'church_id');
     }
 
+    public function domainAuditEntries(): HasMany
+    {
+        return $this->hasMany(ChurchAuditEntry::class);
+    }
+
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
