@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureChurchPermission;
 use App\Http\Middleware\EnsurePlanFeature;
 use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'church' => SetCurrentChurch::class,
+            'permission' => EnsureChurchPermission::class,
             'plan.feature' => EnsurePlanFeature::class,
             'platform' => EnsurePlatformAdmin::class,
         ]);

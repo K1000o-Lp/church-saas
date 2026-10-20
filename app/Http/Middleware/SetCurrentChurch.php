@@ -55,7 +55,7 @@ class SetCurrentChurch
         $request->session()->put('current_church_id', $church->getKey());
         $request->attributes->set('currentMembership', $membership);
 
-        $this->currentChurch->set($church);
+        $this->currentChurch->set($church, $membership);
 
         try {
             return $next($request);

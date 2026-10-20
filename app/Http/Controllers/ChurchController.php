@@ -8,6 +8,7 @@ use App\Models\ChurchMembership;
 use App\Models\Invoice;
 use App\Support\Billing\InvoicePresenter;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,7 +19,7 @@ class ChurchController extends Controller
         /** @var ChurchMembership $membership */
         $membership = $request->attributes->get('currentMembership');
 
-        $canViewBilling = in_array($membership->role, ['admin', 'finance'], true);
+        $canViewBilling = Gate::allows('viewBilling', $church);
         $billing = null;
 
         if ($canViewBilling) {

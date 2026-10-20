@@ -5,6 +5,8 @@ namespace App\Http\Middleware;
 use App\Models\Church;
 use App\Models\ChurchMembership;
 use App\Models\PlatformAdmin;
+use App\Support\Auth\Role;
+use App\Support\Auth\RolePermissions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Middleware;
@@ -55,7 +57,7 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * @return array{name: string, slug: string, countryCode: ?string, currencyCode: ?string, timezone: ?string, role: string}|null
+     * @return array{name: string, slug: string, countryCode: ?string, currencyCode: ?string, timezone: ?string, role: string, roleLabel: string, permissions: array<int, string>}|null
      */
     private function currentChurch(Request $request): ?array
     {
@@ -66,6 +68,8 @@ class HandleInertiaRequests extends Middleware
             return null;
         }
 
+        $role = Role::tryFrom((string) $membership->role);
+
         return [
             'name' => $church->name,
             'slug' => $church->slug,
@@ -73,6 +77,11 @@ class HandleInertiaRequests extends Middleware
             'currencyCode' => $church->currency_code,
             'timezone' => $church->timezone,
             'role' => $membership->role,
+            'roleLabel' => $role?->label() ?? $membership->role,
+            'permissions' => array_map(
+                fn ($permission): string => $permission->value,
+                RolePermissions::forRole($role),
+            ),
         ];
     }
 }

@@ -6,6 +6,7 @@ use App\Models\Church;
 use App\Models\ChurchMembership;
 use App\Support\Plans\Entitlements;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -16,11 +17,7 @@ class ChurchPlanController extends Controller
         /** @var ChurchMembership $membership */
         $membership = $request->attributes->get('currentMembership');
 
-        abort_unless(
-            in_array($membership->role, ['admin', 'finance'], true),
-            403,
-            'Solo administradores y finanzas pueden consultar el plan de la iglesia.',
-        );
+        Gate::authorize('viewPlan', $church);
 
         $entitlements = Entitlements::forChurch($church);
 
