@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowUpRight, CalendarClock, Church, Coins, Plus } from 'lucide-react';
+import { ArrowUpRight, CalendarClock, Church, Coins, Plus, Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,6 +39,18 @@ function ChurchCard({ membership }: { membership: MembershipSummary }) {
                     <div>
                         <CardTitle className="text-xl">{church.name}</CardTitle>
                         <p className="mt-1 text-sm text-muted-foreground">/{church.slug}</p>
+                        {membership.plan && (
+                            <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                                <span className="font-semibold text-foreground">
+                                    {membership.plan.name}
+                                </span>
+                                {membership.plan.isFree && (
+                                    <span className="rounded-full border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[0.68rem] font-semibold text-accent">
+                                        Gratis
+                                    </span>
+                                )}
+                            </p>
+                        )}
                     </div>
                 </CardHeader>
 
@@ -66,6 +78,9 @@ function ChurchCard({ membership }: { membership: MembershipSummary }) {
 }
 
 export default function Dashboard({ memberships }: { memberships: MembershipSummary[] }) {
+    const freeMemberships = memberships.filter((membership) => membership.plan?.isFree);
+    const firstViewableFree = freeMemberships.find((membership) => membership.canViewPlan);
+
     return (
         <AppLayout>
             <Head title="Mis iglesias" />
@@ -90,6 +105,27 @@ export default function Dashboard({ memberships }: { memberships: MembershipSumm
                     </Button>
                 )}
             </div>
+
+            {freeMemberships.length > 0 && (
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm">
+                    <div className="flex items-start gap-2.5">
+                        <Sparkles className="mt-0.5 size-4 shrink-0 text-accent" />
+                        <p>
+                            {freeMemberships.length === 1
+                                ? 'Una de tus iglesias está en el plan gratuito Comunidad.'
+                                : 'Tienes iglesias en el plan gratuito Comunidad.'}{' '}
+                            Puedes conocer los otros planes y cambiar cuando quieras.
+                        </p>
+                    </div>
+                    {firstViewableFree && (
+                        <Button variant="outline" size="sm" asChild>
+                            <Link href={`/churches/${firstViewableFree.church.slug}/plan`}>
+                                Ver planes
+                            </Link>
+                        </Button>
+                    )}
+                </div>
+            )}
 
             {memberships.length === 0 ? (
                 <Card className="mt-8 items-center py-12 text-center">

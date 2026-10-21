@@ -7,6 +7,7 @@ use App\Models\ChurchMembership;
 use App\Models\PlatformAdmin;
 use App\Support\Auth\Role;
 use App\Support\Auth\RolePermissions;
+use App\Support\Plans\PlanCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Middleware;
@@ -57,7 +58,7 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * @return array{name: string, slug: string, countryCode: ?string, currencyCode: ?string, timezone: ?string, role: string, roleLabel: string, permissions: array<int, string>}|null
+     * @return array{name: string, slug: string, countryCode: ?string, currencyCode: ?string, timezone: ?string, role: string, roleLabel: string, permissions: array<int, string>, plan: array<string, mixed>|null}|null
      */
     private function currentChurch(Request $request): ?array
     {
@@ -82,6 +83,7 @@ class HandleInertiaRequests extends Middleware
                 fn ($permission): string => $permission->value,
                 RolePermissions::forRole($role),
             ),
+            'plan' => PlanCatalog::forChurch($church),
         ];
     }
 }

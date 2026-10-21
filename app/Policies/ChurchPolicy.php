@@ -14,6 +14,11 @@ class ChurchPolicy
         return $this->allows(Permission::ChurchPlanView, $church);
     }
 
+    public function managePlan(User $user, Church $church): bool
+    {
+        return $this->allows(Permission::ChurchPlanManage, $church);
+    }
+
     public function viewBilling(User $user, Church $church): bool
     {
         return $this->allows(Permission::BillingView, $church);

@@ -7,6 +7,7 @@ import {
     LayoutDashboard,
     LogOut,
     Settings,
+    Sparkles,
     Users,
     Wallet,
 } from 'lucide-react';
@@ -142,6 +143,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
     const user = auth.user;
     const pathname = url.split('?')[0] ?? '/';
     const churchHref = currentChurch ? `/churches/${currentChurch.slug}` : '/dashboard';
+    const plan = currentChurch?.plan ?? null;
+    const canViewPlan = currentChurch?.permissions.includes('church.plan.view') ?? false;
     const primaryNav = buildPrimaryNav(currentChurch);
     const secondaryNav = buildSecondaryNav(currentChurch);
     const mobileNav: NavItem[] = [
@@ -169,6 +172,16 @@ export function AppLayout({ children }: { children: ReactNode }) {
                                 ? `Rol: ${currentChurch.roleLabel}`
                                 : 'Abre una iglesia desde el panel'}
                         </p>
+                        {plan && (
+                            <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                                <span className="font-semibold text-foreground">{plan.name}</span>
+                                {plan.isFree && (
+                                    <span className="rounded-full border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[0.68rem] font-semibold text-accent">
+                                        Gratis
+                                    </span>
+                                )}
+                            </p>
+                        )}
                     </div>
                 </div>
 
@@ -270,6 +283,25 @@ export function AppLayout({ children }: { children: ReactNode }) {
                         </div>
                     </div>
                 </header>
+
+                {plan?.isFree && currentChurch && (
+                    <div className="mx-4 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm sm:mx-6 lg:mx-8">
+                        <div className="flex items-start gap-2.5">
+                            <Sparkles className="mt-0.5 size-4 shrink-0 text-accent" />
+                            <p>
+                                Estás en el plan <strong>{plan.name}</strong> (gratis). Conoce
+                                Crecimiento y Ministerio Pro para ampliar límites y funciones.
+                            </p>
+                        </div>
+                        {canViewPlan && (
+                            <Button variant="outline" size="sm" asChild>
+                                <Link href={`/churches/${currentChurch.slug}/plan`}>
+                                    Ver planes
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
+                )}
 
                 {flash?.success && (
                     <div className="mx-4 mt-4 rounded-lg border border-primary/25 bg-primary/10 px-4 py-3 text-sm font-medium text-primary sm:mx-6 lg:mx-8">

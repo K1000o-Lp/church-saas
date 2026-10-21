@@ -51,7 +51,9 @@ function Detail({
 }
 
 export default function ChurchShow({ church, membership, currencies, billing }: Props) {
-    const permissions = usePage<PageProps>().props.currentChurch?.permissions ?? [];
+    const currentChurch = usePage<PageProps>().props.currentChurch;
+    const permissions = currentChurch?.permissions ?? [];
+    const plan = currentChurch?.plan ?? null;
     const canManageMembers = permissions.includes('church.members.manage');
     const canManageCustomFields = permissions.includes('people.custom_fields.manage');
 
@@ -70,6 +72,12 @@ export default function ChurchShow({ church, membership, currencies, billing }: 
                     <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                         Sesión activa · {membership.role}
                     </span>
+                    {plan && (
+                        <span className="rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
+                            Plan {plan.name}
+                            {plan.isFree ? ' · Gratis' : ''}
+                        </span>
+                    )}
                     {permissions.includes('church.plan.view') && (
                         <Button variant="outline" size="sm" asChild>
                             <Link href={`/churches/${church.slug}/plan`}>

@@ -36,7 +36,12 @@ class ChurchPlanPageTest extends TestCase
                     ->where('church.slug', $church->slug)
                     ->where('membership.role', $role)
                     ->where('plan.plan.key', PlanMatrix::COMMUNITY)
+                    ->where('plan.plan.isFree', true)
                     ->where('plan.subscription.status', 'active')
+                    ->where('canChangePlan', $role === 'admin')
+                    ->has('availablePlans', 3)
+                    ->where('availablePlans.0.key', PlanMatrix::COMMUNITY)
+                    ->where('availablePlans.0.isCurrent', true)
                     ->has('plan.usage', 7)
                     ->where('plan.usage.'.PlanResources::PEOPLE.'.limit', 100)
                     ->has('plan.features', 6));

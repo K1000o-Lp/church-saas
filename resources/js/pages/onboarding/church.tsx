@@ -1,5 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Coins, Globe2, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Coins, Globe2, ShieldCheck, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 
@@ -146,7 +146,7 @@ export default function ChurchOnboarding({
                 <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
                     {hasMemberships
                         ? 'La nueva iglesia tendrá un espacio de datos independiente. Quedarás como administrador de esta iglesia.'
-                        : 'Completa los datos base. Al terminar serás administrador de la iglesia y podrás invitar a tu equipo cuando habilitemos las invitaciones.'}
+                        : 'Completa los datos base. Al terminar serás administrador de la iglesia y podrás invitar a tu equipo desde la configuración de miembros.'}
                 </p>
             </div>
 
@@ -284,7 +284,7 @@ export default function ChurchOnboarding({
                             <CardTitle>Monedas</CardTitle>
                             <CardDescription>
                                 La moneda principal se registra como predeterminada. El plan{' '}
-                                {initialPlan.name} permite{' '}
+                                {initialPlan.name} es gratis y permite{' '}
                                 {initialPlan.currencyLimit === null
                                     ? 'monedas ilimitadas'
                                     : `${initialPlan.currencyLimit} moneda(s)`}
@@ -414,6 +414,18 @@ export default function ChurchOnboarding({
                                         {form.data.additional_currencies.length > 0
                                             ? `Adicionales: ${form.data.additional_currencies.join(', ')}`
                                             : 'Sin monedas adicionales'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-3">
+                                <Sparkles className="mt-0.5 size-4 text-primary" />
+                                <div>
+                                    <p className="font-semibold">
+                                        Plan {initialPlan.name} · Gratis
+                                    </p>
+                                    <p className="text-muted-foreground">
+                                        Puedes cambiarlo a Crecimiento o Ministerio Pro cuando
+                                        quieras.
                                     </p>
                                 </div>
                             </div>

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Church;
 use App\Models\ChurchMembership;
 use App\Models\User;
+use App\Support\Plans\PlanMatrix;
 use App\Support\Tenancy\CurrentChurch;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -90,6 +91,26 @@ class AuthenticationTest extends TestCase
                 ->has('memberships', 0));
     }
 
+    public function test_the_dashboard_exposes_plan_summaries_for_memberships(): void
+    {
+        $user = $this->createUser();
+        $adminChurch = $this->createChurch('iglesia-plan-admin');
+        $memberChurch = $this->createChurch('iglesia-plan-miembro');
+        $this->createMembership($adminChurch, $user);
+        $this->createMembership($memberChurch, $user, 'active', 'member');
+
+        $this->actingAs($user)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('dashboard')
+                ->has('memberships', 2)
+                ->where('memberships.0.plan.key', PlanMatrix::COMMUNITY)
+                ->where('memberships.0.plan.isFree', true)
+                ->where('memberships.0.canViewPlan', true)
+                ->where('memberships.1.canViewPlan', false));
+    }
+
     public function test_a_member_can_access_an_active_church(): void
     {
         $user = $this->createUser();
@@ -103,7 +124,9 @@ class AuthenticationTest extends TestCase
                 ->component('churches/show')
                 ->where('church.name', $church->name)
                 ->where('membership.role', 'admin')
-                ->where('currentChurch.role', 'admin'))
+                ->where('currentChurch.role', 'admin')
+                ->where('currentChurch.plan.key', PlanMatrix::COMMUNITY)
+                ->where('currentChurch.plan.isFree', true))
             ->assertSessionHas('current_church_id', $church->id);
     }
 
@@ -190,12 +213,12 @@ class AuthenticationTest extends TestCase
         ]);
     }
 
-    private function createMembership(Church $church, User $user, string $status = 'active'): ChurchMembership
+    private function createMembership(Church $church, User $user, string $status = 'active', string $role = 'admin'): ChurchMembership
     {
         return ChurchMembership::create([
             'church_id' => $church->id,
             'user_id' => $user->id,
-            'role' => 'admin',
+            'role' => $role,
             'status' => $status,
         ]);
     }

@@ -39,6 +39,8 @@ final class DomainAudit
 
     public const PASSWORD_RESET = 'auth.password_reset';
 
+    public const PLAN_CHANGED = 'plan.changed';
+
     /**
      * @param  array<string, mixed>  $metadata
      */

@@ -211,6 +211,7 @@ final class Entitlements
                 'priceMinor' => $this->plan->price_minor,
                 'currencyCode' => $this->plan->currency_code,
                 'billingInterval' => $this->plan->billing_interval,
+                'isFree' => $this->plan->price_minor === 0,
             ],
             'subscription' => $this->subscription === null ? null : [
                 'status' => $this->subscription->status,

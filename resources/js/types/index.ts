@@ -4,6 +4,15 @@ export type User = {
     email: string;
 };
 
+export type CurrentPlanSummary = {
+    key: string;
+    name: string;
+    priceMinor: number;
+    currencyCode: string;
+    billingInterval: string;
+    isFree: boolean;
+};
+
 export type CurrentChurch = {
     name: string;
     slug: string;
@@ -13,6 +22,7 @@ export type CurrentChurch = {
     role: string | null;
     roleLabel: string;
     permissions: string[];
+    plan: CurrentPlanSummary | null;
 };
 
 export type Flash = {
@@ -48,6 +58,8 @@ export type ChurchSummary = {
 export type MembershipSummary = {
     id: number;
     role: string;
+    canViewPlan: boolean;
+    plan: CurrentPlanSummary | null;
     church: ChurchSummary;
 };
 
@@ -217,6 +229,14 @@ export type PlanSummary = {
     priceMinor: number;
     currencyCode: string;
     billingInterval: string;
+    isFree: boolean;
+};
+
+export type AvailablePlan = CurrentPlanSummary & {
+    description: string;
+    isCurrent: boolean;
+    limits: Record<string, number | null>;
+    features: string[];
 };
 
 export type SubscriptionSummary = {

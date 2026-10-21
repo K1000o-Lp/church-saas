@@ -9,6 +9,7 @@ enum Permission: string
     case ChurchInvitationsManage = 'church.invitations.manage';
     case ChurchAuditView = 'church.audit.view';
     case ChurchPlanView = 'church.plan.view';
+    case ChurchPlanManage = 'church.plan.manage';
     case BillingView = 'billing.view';
 
     case PeopleView = 'people.view';

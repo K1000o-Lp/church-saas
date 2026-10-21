@@ -66,6 +66,9 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/churches/{church}/plan', [ChurchPlanController::class, 'show'])
         ->middleware('church')
         ->name('churches.plan');
+    Route::put('/churches/{church}/plan', [ChurchPlanController::class, 'update'])
+        ->middleware(['church', 'permission:church.plan.manage'])
+        ->name('churches.plan.update');
 
     Route::middleware(['church', 'permission:people.create'])->group(function (): void {
         Route::get('/churches/{church}/people/create', [PersonController::class, 'create'])

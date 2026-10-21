@@ -41,6 +41,7 @@ const actionLabels: Record<string, string> = {
     'invitation.created': 'Invitación creada',
     'invitation.revoked': 'Invitación revocada',
     'invitation.accepted': 'Invitación aceptada',
+    'plan.changed': 'Plan cambiado',
 };
 
 const subjectLabels: Record<string, string> = {
@@ -48,6 +49,7 @@ const subjectLabels: Record<string, string> = {
     'App\\Models\\ChurchInvitation': 'Invitación',
     'App\\Models\\CustomFieldDefinition': 'Campo personalizado',
     'App\\Models\\ChurchMembership': 'Membresía',
+    'App\\Models\\ChurchSubscription': 'Suscripción',
 };
 
 export default function ChurchAudit({ church, entries, pagination }: Props) {
