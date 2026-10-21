@@ -6,6 +6,7 @@ use App\Models\Church;
 use App\Models\ChurchInvitation;
 use App\Models\ChurchLimitOverride;
 use App\Models\ChurchMembership;
+use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Notifications\ChurchInvitationNotification;
 use App\Support\Plans\PlanResources;
@@ -82,6 +83,7 @@ class ChurchInvitationTest extends TestCase
         $user = User::query()->where('email', 'new@example.com')->firstOrFail();
 
         $this->assertAuthenticatedAs($user);
+        $this->assertNotNull($user->email_verified_at);
         $this->assertDatabaseHas('church_memberships', [
             'church_id' => $church->getKey(),
             'user_id' => $user->getKey(),
@@ -116,6 +118,137 @@ class ChurchInvitationTest extends TestCase
             'role' => 'finance',
             'status' => 'active',
         ]);
+    }
+
+    public function test_accepting_an_invitation_verifies_an_existing_unverified_account(): void
+    {
+        $church = $this->createChurch('iglesia-verifica-invitacion');
+        $admin = $this->createMember($church, 'admin');
+        $user = User::factory()->unverified()->create(['email' => 'unverified@example.com']);
+        $plainToken = $this->createInvitation($church, $user->email, 'member', $admin);
+
+        $this->actingAs($user)
+            ->post(route('invitations.accept', ['token' => $plainToken]))
+            ->assertRedirect(route('churches.show', $church));
+
+        $this->assertNotNull($user->refresh()->email_verified_at);
+    }
+
+    public function test_a_suspended_membership_cannot_be_reactivated_by_an_invitation(): void
+    {
+        $church = $this->createChurch('iglesia-invitacion-suspendida');
+        $admin = $this->createMember($church, 'admin');
+        $user = User::factory()->create(['email' => 'suspended@example.com']);
+        $plainToken = $this->createInvitation($church, $user->email, 'admin', $admin);
+
+        ChurchMembership::create([
+            'church_id' => $church->getKey(),
+            'user_id' => $user->getKey(),
+            'role' => 'admin',
+            'status' => 'suspended',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('invitations.accept', ['token' => $plainToken]))
+            ->assertSessionHasErrors('invitation');
+
+        $this->assertDatabaseHas('church_memberships', [
+            'church_id' => $church->getKey(),
+            'user_id' => $user->getKey(),
+            'status' => 'suspended',
+        ]);
+    }
+
+    public function test_an_invited_membership_is_activated_by_the_invitation(): void
+    {
+        $church = $this->createChurch('iglesia-invitacion-activa');
+        $admin = $this->createMember($church, 'admin');
+        $user = User::factory()->create(['email' => 'invited@example.com']);
+        $plainToken = $this->createInvitation($church, $user->email, 'leader', $admin);
+
+        ChurchMembership::create([
+            'church_id' => $church->getKey(),
+            'user_id' => $user->getKey(),
+            'role' => 'member',
+            'status' => 'invited',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('invitations.accept', ['token' => $plainToken]))
+            ->assertRedirect(route('churches.show', $church));
+
+        $this->assertDatabaseHas('church_memberships', [
+            'church_id' => $church->getKey(),
+            'user_id' => $user->getKey(),
+            'role' => 'leader',
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_a_platform_admin_email_cannot_be_invited_or_join_a_church(): void
+    {
+        $church = $this->createChurch('iglesia-invitacion-plataforma');
+        $admin = $this->createMember($church, 'admin');
+        $platformAdmin = PlatformAdmin::factory()->create(['email' => 'platform@example.com']);
+
+        $this->actingAs($admin)
+            ->post(route('churches.invitations.store', $church), [
+                'email' => $platformAdmin->email,
+                'role' => 'member',
+            ])
+            ->assertSessionHasErrors('email');
+
+        $plainToken = $this->createInvitation($church, $platformAdmin->email, 'member', $admin);
+
+        $this->post(route('invitations.accept', ['token' => $plainToken]), [
+            'name' => 'Plataforma',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertSessionHasErrors('invitation');
+
+        $this->assertDatabaseMissing('users', ['email' => 'platform@example.com']);
+    }
+
+    public function test_the_plan_seat_limit_is_enforced_when_accepting_an_invitation(): void
+    {
+        $church = $this->createChurch('iglesia-invitacion-asientos');
+        $admin = $this->createMember($church, 'admin');
+        $plainToken = $this->createInvitation($church, 'new-seat@example.com', 'member', $admin);
+
+        ChurchLimitOverride::create([
+            'church_id' => $church->getKey(),
+            'resource' => PlanResources::ACTIVE_USERS,
+            'limit_value' => 1,
+        ]);
+
+        $this->post(route('invitations.accept', ['token' => $plainToken]), [
+            'name' => 'Nuevo Asiento',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertSessionHasErrors('invitation');
+
+        $this->assertDatabaseMissing('users', ['email' => 'new-seat@example.com']);
+    }
+
+    public function test_a_suspended_admin_can_be_removed_without_blocking_the_last_active_admin(): void
+    {
+        $church = $this->createChurch('iglesia-admin-suspendido');
+        $admin = $this->createMember($church, 'admin');
+        $suspended = $this->createMember($church, 'admin');
+
+        $suspendedMembership = ChurchMembership::query()
+            ->where('user_id', $suspended->getKey())
+            ->firstOrFail();
+        $suspendedMembership->update(['status' => 'suspended']);
+
+        $this->actingAs($admin)
+            ->delete(route('churches.members.destroy', [
+                'church' => $church,
+                'membership' => $suspendedMembership,
+            ]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertModelMissing($suspendedMembership);
     }
 
     public function test_an_invitation_is_bound_to_its_email(): void
@@ -248,6 +381,28 @@ class ChurchInvitationTest extends TestCase
             'church_id' => $church->getKey(),
             'action' => 'membership.role_changed',
         ]);
+    }
+
+    public function test_sending_invitations_is_rate_limited_per_user(): void
+    {
+        $church = $this->createChurch('iglesia-invitaciones-throttle');
+        $admin = $this->createMember($church, 'admin');
+
+        for ($attempt = 1; $attempt <= 30; $attempt++) {
+            $this->actingAs($admin)
+                ->post(route('churches.invitations.store', $church), [
+                    'email' => 'invalid-email',
+                    'role' => 'member',
+                ])
+                ->assertSessionHasErrors('email');
+        }
+
+        $this->actingAs($admin)
+            ->post(route('churches.invitations.store', $church), [
+                'email' => 'invalid-email',
+                'role' => 'member',
+            ])
+            ->assertStatus(429);
     }
 
     private function createInvitation(

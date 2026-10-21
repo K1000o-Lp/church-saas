@@ -188,6 +188,9 @@ export default function InvitationShow({
                                                 {form.errors.password}
                                             </p>
                                         )}
+                                        <p className="text-xs text-muted-foreground">
+                                            Mínimo 10 caracteres, con letras y números.
+                                        </p>
                                     </div>
 
                                     <div className="space-y-2">

@@ -7,11 +7,13 @@ use App\Http\Requests\AcceptChurchInvitationRequest;
 use App\Models\Church;
 use App\Models\ChurchInvitation;
 use App\Models\ChurchMembership;
+use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Support\Audit\DomainAudit;
 use App\Support\Church\ChurchStatus;
 use App\Support\Plans\Entitlements;
 use App\Support\Plans\PlanResources;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -120,9 +122,21 @@ class InvitationAcceptanceController extends Controller
                     ]);
                 }
 
+                $email = Str::lower((string) $locked->email);
+
+                if (PlatformAdmin::query()->whereRaw('lower(email) = ?', [$email])->exists()) {
+                    throw ValidationException::withMessages([
+                        'invitation' => 'Ese correo pertenece a una cuenta de plataforma y no puede unirse a una iglesia.',
+                    ]);
+                }
+
+                // Serialize seat consumption for this church so concurrent
+                // invitations cannot exceed the plan limit.
+                Church::query()->whereKey($church->getKey())->lockForUpdate()->firstOrFail();
+
                 if ($authenticatedUser === null) {
                     $existing = User::query()
-                        ->whereRaw('lower(email) = ?', [Str::lower($locked->email)])
+                        ->whereRaw('lower(email) = ?', [$email])
                         ->first();
 
                     if ($existing instanceof User) {
@@ -135,15 +149,27 @@ class InvitationAcceptanceController extends Controller
                         'name' => $validated['name'],
                         'email' => $locked->email,
                         'password' => $validated['password'],
-                        'email_verified_at' => now(),
                     ]);
+
+                    // The invitation token was delivered to this email, so
+                    // accepting it proves ownership of the address.
+                    $user->forceFill(['email_verified_at' => now()])->save();
                 } else {
                     $user = $authenticatedUser;
 
-                    if (Str::lower((string) $user->email) !== Str::lower($locked->email)) {
+                    if (Str::lower((string) $user->email) !== $email) {
                         throw ValidationException::withMessages([
                             'invitation' => 'Esta invitación pertenece a otro correo electrónico.',
                         ]);
+                    }
+
+                    // The signed invitation token was delivered to this email,
+                    // so accepting it proves ownership even if the account was
+                    // created before email verification was introduced.
+                    if (! $user->hasVerifiedEmail()) {
+                        $user->markEmailAsVerified();
+
+                        event(new Verified($user));
                     }
                 }
 
@@ -161,8 +187,16 @@ class InvitationAcceptanceController extends Controller
                     ]);
                 }
 
+                if ($membership instanceof ChurchMembership && $membership->status !== 'invited') {
+                    throw ValidationException::withMessages([
+                        'invitation' => 'Tu membresía no está activa. Contacta a un administrador de la iglesia.',
+                    ]);
+                }
+
+                $addsActiveSeat = $membership === null || $membership->status === 'invited';
+
                 if (
-                    $membership === null
+                    $addsActiveSeat
                     && $limit !== null
                     && $entitlements->usageFor(PlanResources::ACTIVE_USERS) >= $limit
                 ) {

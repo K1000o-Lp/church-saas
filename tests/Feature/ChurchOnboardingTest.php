@@ -175,6 +175,21 @@ class ChurchOnboardingTest extends TestCase
         ]);
     }
 
+    public function test_church_creation_is_rate_limited(): void
+    {
+        $user = User::factory()->create();
+
+        for ($attempt = 1; $attempt <= 5; $attempt++) {
+            $this->actingAs($user)
+                ->post('/onboarding/church', [])
+                ->assertSessionHasErrors();
+        }
+
+        $this->actingAs($user)
+            ->post('/onboarding/church', [])
+            ->assertStatus(429);
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>

@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
 
 class AcceptChurchInvitationRequest extends FormRequest
 {
@@ -23,7 +24,7 @@ class AcceptChurchInvitationRequest extends FormRequest
     }
 
     /**
-     * @return array<string, array<int, string>>
+     * @return array<string, array<int, mixed>>
      */
     public function rules(): array
     {
@@ -46,7 +47,7 @@ class AcceptChurchInvitationRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:120'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', 'max:255', 'confirmed', Password::default()],
         ];
     }
 }
