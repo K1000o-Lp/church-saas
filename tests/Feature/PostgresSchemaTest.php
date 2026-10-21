@@ -415,6 +415,111 @@ class PostgresSchemaTest extends TestCase
         ]);
     }
 
+    public function test_segment_type_must_be_valid(): void
+    {
+        $churchId = $this->createChurch('segment-type-check');
+
+        $this->expectException(QueryException::class);
+
+        DB::table('segments')->insert([
+            'church_id' => $churchId,
+            'name' => 'Invalid type',
+            'type' => 'other',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    public function test_dynamic_segments_require_rules_and_static_segments_cannot_have_them(): void
+    {
+        $churchId = $this->createChurch('segment-rules-check');
+
+        $this->expectException(QueryException::class);
+
+        DB::table('segments')->insert([
+            'church_id' => $churchId,
+            'name' => 'Dynamic without rules',
+            'type' => 'dynamic',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    public function test_static_segments_cannot_have_rules(): void
+    {
+        $churchId = $this->createChurch('segment-static-rules-check');
+
+        $this->expectException(QueryException::class);
+
+        DB::table('segments')->insert([
+            'church_id' => $churchId,
+            'name' => 'Static with rules',
+            'type' => 'static',
+            'rules' => DB::raw("'{}'::jsonb"),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    public function test_segment_members_cannot_pair_records_from_different_churches(): void
+    {
+        $churchA = $this->createChurch('segment-member-a');
+        $churchB = $this->createChurch('segment-member-b');
+        $personA = $this->createPerson($churchA, 'Ana');
+        $segmentB = $this->createSegment($churchB, 'Segment B');
+
+        $this->expectException(QueryException::class);
+
+        DB::table('segment_members')->insert([
+            'church_id' => $churchB,
+            'segment_id' => $segmentB,
+            'person_id' => $personA,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    public function test_segment_members_and_event_segments_cascade_when_a_segment_is_deleted(): void
+    {
+        $churchId = $this->createChurch('segment-cascade');
+        $personId = $this->createPerson($churchId, 'Ana');
+        $eventId = $this->createEvent($churchId);
+        $segmentId = $this->createSegment($churchId, 'Cascade segment');
+
+        DB::table('segment_members')->insert([
+            'church_id' => $churchId,
+            'segment_id' => $segmentId,
+            'person_id' => $personId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('event_segments')->insert([
+            'church_id' => $churchId,
+            'event_id' => $eventId,
+            'segment_id' => $segmentId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('segments')->where('id', $segmentId)->delete();
+
+        $this->assertSame(0, DB::table('segment_members')->where('segment_id', $segmentId)->count());
+        $this->assertSame(0, DB::table('event_segments')->where('segment_id', $segmentId)->count());
+    }
+
+    private function createSegment(int $churchId, string $name, string $type = 'static'): int
+    {
+        return DB::table('segments')->insertGetId([
+            'church_id' => $churchId,
+            'name' => $name,
+            'type' => $type,
+            'rules' => $type === 'dynamic' ? DB::raw("'{}'::jsonb") : null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
     private function createChurch(string $slug): int
     {
         return DB::table('churches')->insertGetId([
