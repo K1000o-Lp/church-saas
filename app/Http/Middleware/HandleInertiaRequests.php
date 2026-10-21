@@ -63,7 +63,7 @@ class HandleInertiaRequests extends Middleware
     private function currentChurch(Request $request): ?array
     {
         $membership = $request->attributes->get('currentMembership');
-        $church = $request->route('church');
+        $church = $request->attributes->get('currentChurch');
 
         if (! $membership instanceof ChurchMembership || ! $church instanceof Church) {
             return null;
