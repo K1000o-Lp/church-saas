@@ -91,10 +91,7 @@ class ChurchMemberController extends Controller
             return back();
         }
 
-        if (
-            $membership->role === Role::Admin->value
-            && $this->otherActiveAdmins($church, $membership) === 0
-        ) {
+        if ($this->wouldRemoveLastActiveAdmin($church, $membership)) {
             return back()->withErrors([
                 'role' => 'La iglesia debe conservar al menos un administrador activo.',
             ]);
@@ -126,10 +123,7 @@ class ChurchMemberController extends Controller
             'No puedes eliminar tu propia membresía.',
         );
 
-        if (
-            $membership->role === Role::Admin->value
-            && $this->otherActiveAdmins($church, $membership) === 0
-        ) {
+        if ($this->wouldRemoveLastActiveAdmin($church, $membership)) {
             return back()->withErrors([
                 'member' => 'La iglesia debe conservar al menos un administrador activo.',
             ]);
@@ -143,6 +137,13 @@ class ChurchMemberController extends Controller
         $membership->delete();
 
         return back()->with('success', 'Miembro eliminado de la iglesia.');
+    }
+
+    private function wouldRemoveLastActiveAdmin(Church $church, ChurchMembership $membership): bool
+    {
+        return $membership->role === Role::Admin->value
+            && $membership->status === 'active'
+            && $this->otherActiveAdmins($church, $membership) === 0;
     }
 
     private function otherActiveAdmins(Church $church, ChurchMembership $membership): int
