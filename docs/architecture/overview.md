@@ -2,7 +2,7 @@
 
 ## Estado y alcance
 
-Existe scaffold Laravel 12 con modelos Eloquent, contexto/middleware de tenancy y migraciones iniciales escritas. Hay autenticación web por sesión, recuperación de contraseña, selección de iglesia, autorización de membresía por petición, RBAC formal con roles y permisos, invitaciones por correo, gestión de miembros, onboarding autoservicio de iglesia con membresía y monedas, backoffice exclusivo de plataforma en `/admin` con auditoría y administración de estados, planes/límites/funciones con entitlements por iglesia, facturación manual en USD con pagos y estados, purga auditada de iglesias archivadas, auditoría de dominio, contexto tenant explícito para jobs/comandos, y un módulo de personas con campos personalizados. La interfaz Inertia + React + TypeScript incluye login, recuperación, panel de iglesias, directorio de personas, configuración de miembros/campos e historial de facturas. Faltan MFA, runner de workflows, pagos automáticos, infraestructura desplegada e integraciones productivas. No ejecutar migraciones ni intentar conexiones hasta configurar explícitamente PostgreSQL.
+Existe scaffold Laravel 12 con modelos Eloquent, contexto/middleware de tenancy y migraciones iniciales escritas. Hay autenticación web por sesión, registro público con onboarding posterior, recuperación de contraseña, selección de iglesia, autorización de membresía por petición, RBAC formal con roles y permisos, invitaciones por correo, gestión de miembros, onboarding autoservicio de iglesia con membresía y monedas, cambio de plan autoservicio para administradores de iglesia, backoffice exclusivo de plataforma en `/admin` con auditoría y administración de estados, planes/límites/funciones con entitlements por iglesia, facturación manual en USD con pagos y estados, purga auditada de iglesias archivadas, auditoría de dominio, contexto tenant explícito para jobs/comandos, y un módulo de personas con campos personalizados. La interfaz Inertia + React + TypeScript incluye registro, login, recuperación, panel de iglesias, directorio de personas, configuración de miembros/campos e historial de facturas. Faltan MFA, runner de workflows, pagos automáticos, infraestructura desplegada e integraciones productivas. No ejecutar migraciones ni intentar conexiones hasta configurar explícitamente PostgreSQL.
 
 La plataforma objetivo es un SaaS para iglesias, con foco inicial en Venezuela y Colombia. El alcance por validar incluye gestión de personas y campos personalizados, segmentos, eventos con RSVP y asistencia, diezmos/ofrendas, consolidación pastoral, servidores y servicios/cultos, y eventualmente automatizaciones e integraciones de pago.
 
@@ -32,13 +32,13 @@ Colas, tareas programadas, webhooks y comandos no heredan una petición confiabl
 
 ## Onboarding de iglesias
 
-La creación de iglesias es **autoservicio para el usuario autenticado**; el backoffice de
-plataforma administra tenants existentes, pero no es el mecanismo de alta. El usuario con
-sesión inicia el onboarding en `/onboarding/church` y, en una sola transacción, se crean la
-iglesia, su membresía `admin` activa, la suscripción al plan Comunidad y el catálogo de monedas
-(principal como default y adicionales opcionales dentro del límite del plan inicial). Después se
-guarda `current_church_id` en sesión y se redirige a la iglesia; a partir de ahí aplican las
-mismas comprobaciones de membresía que en cualquier otra ruta.
+La creación de iglesias es **autoservicio**; el backoffice de plataforma administra tenants
+existentes, pero no es el mecanismo de alta. Cualquier persona puede crear una cuenta en
+`/register`; al quedar autenticada inicia el onboarding en `/onboarding/church` y, en una sola
+transacción, se crean la iglesia, su membresía `admin` activa, la suscripción al plan Comunidad
+y el catálogo de monedas (principal como default y adicionales opcionales dentro del límite del
+plan inicial). Después se guarda `current_church_id` en sesión y se redirige a la iglesia; a
+partir de ahí aplican las mismas comprobaciones de membresía que en cualquier otra ruta.
 
 Decisiones asociadas:
 
@@ -49,9 +49,10 @@ Decisiones asociadas:
 - El país se limita inicialmente a Venezuela y Colombia; la zona horaria se valida como IANA.
   El catálogo inicial de monedas es USD, VES, COP y EUR.
 - La creación es transaccional: si falla la membresía o una moneda, no queda iglesia parcial.
-- Invitaciones, recuperación de contraseña, transferencia de propiedad, facturación y MFA
-  quedan pendientes y no se simulan en la interfaz. Los planes se asignan automáticamente al
-  crear la iglesia y los límites del plan inicial se validan también durante el onboarding.
+- Transferencia de propiedad y MFA quedan pendientes y no se simulan en la interfaz. Los planes
+  se asignan automáticamente al crear la iglesia y los límites del plan inicial se validan
+  también durante el onboarding.
+- Invitaciones, recuperación de contraseña y facturación manual ya están implementadas.
 
 ## Backoffice de plataforma
 
@@ -125,7 +126,10 @@ del recurso excedido se rechazan. Las funciones fuera del plan se bloquean con
 `plan.feature:<feature>`; deshabilitarlas no borra datos. El backoffice de plataforma puede
 gestionar suscripción y overrides con auditoría en `platform_audit_entries`. La pantalla
 `/churches/{church}/plan` está disponible para roles `admin` y `finance` con plan actual, uso,
-límites, funciones y estado de suscripción.
+límites, funciones, estado de suscripción y comparativa de planes. Solo `admin` puede cambiar el
+plan (`church.plan.manage`): el cambio se aplica de inmediato, queda registrado en
+`church_audit_entries` con acción `plan.changed`, conserva los datos existentes y no genera una
+factura automática. La facturación del nuevo plan se emite manualmente desde `/admin`.
 
 ## Facturación manual
 

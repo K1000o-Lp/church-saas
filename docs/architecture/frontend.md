@@ -76,6 +76,14 @@ type PageProps = {
         role: string | null;
         roleLabel: string;
         permissions: string[];
+        plan: {
+            key: string;
+            name: string;
+            priceMinor: number;
+            currencyCode: string;
+            billingInterval: string;
+            isFree: boolean;
+        } | null;
     } | null;
     flash: { success?: string | null; error?: string | null };
     errors: Record<string, string>;
@@ -93,6 +101,9 @@ Criterios:
 - `currentChurch.permissions` es una lista de permisos efectivos para UX (mostrar u ocultar
   acciones). No sustituye la autorización del servidor: cada ruta y Policy vuelve a comprobar
   membresía y permiso.
+- `currentChurch.plan` es un resumen del plan vigente para mostrar el estado gratuito o de pago.
+  La pantalla de plan recibe además la comparativa de planes y `canChangePlan`; la mutación se
+  autoriza en servidor con el permiso `church.plan.manage`.
 - No agregar notas pastorales, montos, listas de miembros ni identificadores internos a los
   props compartidos. Cada página recibe solo lo que necesita.
 - Al ampliar los props compartidos, actualizar `PageProps` en `resources/js/types/index.ts`.
