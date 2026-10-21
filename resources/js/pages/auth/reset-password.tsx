@@ -51,7 +51,7 @@ export default function ResetPassword({ token, email }: Props) {
                             </span>
                             <CardTitle className="mt-2">Crea una contraseña nueva</CardTitle>
                             <CardDescription>
-                                Usa al menos 8 caracteres. Al guardar, se cerrarán las sesiones
+                                Usa al menos 10 caracteres, con letras y números. Al guardar, se cerrarán las sesiones
                                 abiertas de esta cuenta.
                             </CardDescription>
                         </CardHeader>

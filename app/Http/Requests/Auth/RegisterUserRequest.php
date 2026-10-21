@@ -4,6 +4,7 @@ namespace App\Http\Requests\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
 
 class RegisterUserRequest extends FormRequest
 {
@@ -21,14 +22,21 @@ class RegisterUserRequest extends FormRequest
     }
 
     /**
-     * @return array<string, array<int, string>>
+     * @return array<string, array<int, mixed>>
      */
     public function rules(): array
     {
         return [
             'name' => ['required', 'string', 'max:120'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                'unique:users,email',
+                'unique:platform_admins,email',
+            ],
+            'password' => ['required', 'string', 'max:255', 'confirmed', Password::default()],
         ];
     }
 
@@ -41,9 +49,12 @@ class RegisterUserRequest extends FormRequest
             'name.required' => 'Escribe tu nombre.',
             'email.required' => 'Escribe tu correo electrónico.',
             'email.email' => 'Escribe un correo electrónico válido.',
-            'email.unique' => 'Ya existe una cuenta con este correo.',
+            'email.unique' => 'No pudimos crear la cuenta con ese correo. Inicia sesión o recupera tu contraseña.',
             'password.required' => 'Crea una contraseña.',
-            'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
+            'password.max' => 'La contraseña no puede superar los 255 caracteres.',
+            'password.min' => 'La contraseña debe tener al menos 10 caracteres.',
+            'password.letters' => 'La contraseña debe incluir al menos una letra.',
+            'password.numbers' => 'La contraseña debe incluir al menos un número.',
             'password.confirmed' => 'Las contraseñas no coinciden.',
         ];
     }

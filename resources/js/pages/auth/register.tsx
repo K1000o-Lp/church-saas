@@ -29,7 +29,7 @@ export default function Register() {
             <AuthLayout
                 eyebrow="Registro"
                 title="Crear cuenta gratis"
-                description="Empieza a organizar tu iglesia en minutos. No necesitas tarjeta."
+                description="Crea tu cuenta y verifica tu correo para empezar. No necesitas tarjeta."
             >
                 <div className="mt-6 flex items-start gap-3 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2.5 text-sm">
                     <Sparkles className="mt-0.5 size-4 shrink-0 text-accent" />
@@ -89,6 +89,9 @@ export default function Register() {
                         {form.errors.password && (
                             <p className="text-sm text-destructive">{form.errors.password}</p>
                         )}
+                        <p className="text-xs text-muted-foreground">
+                            Mínimo 10 caracteres, con letras y números.
+                        </p>
                     </div>
 
                     <div className="space-y-2">
