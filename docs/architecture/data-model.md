@@ -45,9 +45,11 @@ El diseño requiere un índice GIN en `people.custom_fields` para filtros JSONB.
 
 ### `segments`
 
-- **`segments`:** nombre, descripción, estado y versión/reglas guardadas para una iglesia. `rules` debe ser un objeto JSON.
-- Las reglas pueden representarse como árbol JSON validado con operadores y campos permitidos; nunca ejecutar SQL arbitrario desde definiciones de segmento.
-- Evaluación dinámica o membresía materializada (`SegmentMembership`) son alternativas abiertas. Si se materializa, definir actualización, expiración y consistencia; mantener siempre el scope de iglesia.
+- **`segments`:** nombre único por iglesia, descripción, tipo (`dynamic` o `static`), estado y reglas. Los dinámicos exigen `rules` JSONB y los estáticos lo prohíben; una restricción CHECK mantiene esa coherencia. El tipo no se convierte después de crear el segmento.
+- **Reglas dinámicas:** objeto JSON versionado `{version, match, conditions[]}` con `match` en `all`/`any`. Cada condición referencia un campo permitido (`person` o `custom`), un operador válido para su tipo y un valor normalizado. No se ejecuta SQL libre: el servidor valida estructura, claves, operadores y valores contra un catálogo por iglesia. El formato admite grupos anidados en el futuro sin cambiar los datos existentes.
+- **`segment_members`:** membresía explícita para segmentos estáticos: `church_id`, `segment_id`, `person_id`, `added_by` y timestamps, con unicidad por iglesia/segmento/persona y FKs compuestas que impiden cruces de tenant. Las personas archivadas se conservan en el segmento y se muestran con advertencia.
+- **Evaluación:** los dinámicos se calculan al leer (sin materialización) y excluyen siempre a las personas archivadas. Los estáticos solo usan `segment_members`; no se recalculan. `event_segments` puede asociar segmentos de ambos tipos.
+- **Reglas y rendimiento:** los filtros de campos personalizados usan contención JSONB (`custom_fields @> ?::jsonb`) cuando aplica y comparaciones tipadas con guardas de `jsonb_typeof`; las consultas concretas deben medirse contra PostgreSQL.
 
 ### `events`, `event_segments`, RSVP y asistencia
 
@@ -129,7 +131,7 @@ JSONB puede servir para settings, valores personalizados, reglas de segmentos y 
 - Tipo de ID, política de unicidad y eliminación/retención por entidad.
 - Modelo para miembros con múltiples iglesias, identidad y roles/permisos.
 - Esquema y reglas para evolución de `people.custom_fields` y sus definiciones; el almacenamiento objetivo de valores personalizados es JSONB.
-- Segmentos dinámicos/materializados, consultas permitidas e índices requeridos.
+- Segmentos: grupos anidados de reglas y materialización/caché para escala.
 - Manejo de invitados, recurrencias, sesiones y zonas horarias en eventos/servicios.
 - Catálogo de moneda, unidad menor, moneda base y política de conversión/conciliación.
 - Convención/validación de códigos de moneda ampliados y sincronización entre `churches.currency_code` y la fila default de `church_currencies`; el máximo de un default por iglesia ya está garantizado por índice único parcial.

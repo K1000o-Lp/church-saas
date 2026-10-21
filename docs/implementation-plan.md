@@ -64,7 +64,7 @@ Este plan ordena el trabajo desde la validación del problema hasta una primera 
 - ~~Roles y permisos formales, invitaciones y recuperación de contraseña.~~ Implementados con roles fijos (`admin`, `pastor`, `finance`, `leader`, `volunteer`, `member`), matriz de permisos en código, Gates/Policies, middleware `permission`, invitaciones con token hasheado y aceptación con registro específico, y recuperación de contraseña con invalidación de sesiones.
 - ~~Auditoría de dominio y contexto tenant para jobs/comandos.~~ Implementados `church_audit_entries`, `DomainAudit`, `TenantAwareJob`, `CurrentChurch::run` y helpers para comandos con `--church` explícito.
 - ~~Personas, contactos y campos personalizados con validación y permisos.~~ Implementados listado, creación, edición, archivo/restauración, búsqueda, límites de plan, validación dinámica de campos, definiciones administrables y auditoría.
-- Segmentos, inicialmente con alcance acotado y reglas explicables; eventos, RSVP, registro de asistencia y seguimiento pastoral.
+- ~~Segmentos dinámicos y estáticos.~~ Implementados con reglas JSON validadas por catálogo, evaluación en lectura, membresía manual para estáticos, permisos `segments.view`/`segments.manage`, auditoría, UI Inertia y pruebas de aislamiento. Ver [Segmentos](architecture/overview.md#segmentos). Quedan eventos, RSVP, registro de asistencia y seguimiento pastoral.
 - Servicios/cultos, equipos de servidores y asignaciones básicas según priorización.
 - Importación/exportación controlada y manejo de duplicados, si se valida como necesidad del MVP.
 
