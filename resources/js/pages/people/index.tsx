@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { AppLayout } from '@/layouts/app-layout';
 import { formatDate } from '@/lib/format';
-import type { Pagination, PersonSummary } from '@/types';
+import type { Pagination, PersonSummary, SegmentFilterOption } from '@/types';
 
 type Props = {
     church: {
@@ -20,7 +20,9 @@ type Props = {
     filters: {
         search: string;
         status: string;
+        segment: string;
     };
+    segments: SegmentFilterOption[];
     statuses: {
         value: string;
         label: string;
@@ -41,6 +43,7 @@ export default function PeopleIndex({
     people,
     filters,
     statuses,
+    segments,
     pagination,
     canCreate,
     canArchive,
@@ -49,6 +52,7 @@ export default function PeopleIndex({
     const filterForm = useForm({
         search: filters.search,
         status: filters.status,
+        segment: filters.segment,
     });
 
     function submitFilters(event: FormEvent<HTMLFormElement>) {
@@ -97,7 +101,11 @@ export default function PeopleIndex({
             <Card className="mt-6">
                 <CardContent className="pt-6">
                     <form
-                        className="grid gap-4 sm:grid-cols-[1fr_12rem_auto] sm:items-end"
+                        className={`grid gap-4 sm:grid-cols-2 sm:items-end ${
+                            segments.length > 0
+                                ? 'lg:grid-cols-[1fr_12rem_14rem_auto]'
+                                : 'lg:grid-cols-[1fr_12rem_auto]'
+                        }`}
                         onSubmit={submitFilters}
                     >
                         <div className="space-y-2">
@@ -133,6 +141,27 @@ export default function PeopleIndex({
                                 ))}
                             </Select>
                         </div>
+
+                        {segments.length > 0 && (
+                            <div className="space-y-2">
+                                <Label htmlFor="segment">Segmento</Label>
+                                <Select
+                                    id="segment"
+                                    value={filterForm.data.segment}
+                                    onChange={(event) =>
+                                        filterForm.setData('segment', event.target.value)
+                                    }
+                                >
+                                    <option value="">Todos</option>
+                                    {segments.map((segment) => (
+                                        <option key={segment.id} value={String(segment.id)}>
+                                            {segment.name}
+                                            {segment.isActive ? '' : ' (inactivo)'}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </div>
+                        )}
 
                         <Button type="submit" variant="secondary">
                             Filtrar

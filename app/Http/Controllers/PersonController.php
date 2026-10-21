@@ -7,9 +7,12 @@ use App\Http\Requests\UpdatePersonRequest;
 use App\Models\Church;
 use App\Models\CustomFieldDefinition;
 use App\Models\Person;
+use App\Models\Segment;
 use App\Support\Audit\DomainAudit;
 use App\Support\People\CustomFieldRegistry;
 use App\Support\People\CustomFieldType;
+use App\Support\Segments\SegmentQuery;
+use App\Support\Segments\SegmentType;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,21 +31,33 @@ class PersonController extends Controller
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:80'],
             'status' => ['nullable', 'string', Rule::in(['active', 'inactive', 'archived'])],
+            'segment' => ['nullable', 'integer'],
         ]);
 
         $search = trim((string) ($filters['search'] ?? ''));
         $status = $filters['status'] ?? null;
+        $segmentId = $filters['segment'] ?? null;
+        $segment = null;
 
-        $query = Person::query();
+        if ($segmentId !== null) {
+            Gate::authorize('viewAny', Segment::class);
+            $segment = Segment::query()->findOrFail((int) $segmentId);
+        }
+
+        $query = $segment === null
+            ? Person::query()
+            : ($segment->isDynamic()
+                ? SegmentQuery::matchingPeople($church, is_array($segment->rules) ? $segment->rules : [])
+                : Person::query()->whereIn('people.id', $segment->members()->select('person_id')));
 
         if ($search !== '') {
             $like = '%'.Str::lower($search).'%';
 
             $query->where(function ($query) use ($like): void {
-                $query->whereRaw('lower(first_name) like ?', [$like])
-                    ->orWhereRaw('lower(last_name) like ?', [$like])
-                    ->orWhereRaw('lower(email) like ?', [$like])
-                    ->orWhereRaw('lower(phone) like ?', [$like]);
+                $query->whereRaw('lower(people.first_name) like ?', [$like])
+                    ->orWhereRaw('lower(people.last_name) like ?', [$like])
+                    ->orWhereRaw('lower(people.email) like ?', [$like])
+                    ->orWhereRaw('lower(people.phone) like ?', [$like]);
             });
         }
 
@@ -67,12 +82,14 @@ class PersonController extends Controller
             'filters' => [
                 'search' => $search,
                 'status' => $status ?? '',
+                'segment' => $segment?->getKey() !== null ? (string) $segment->getKey() : '',
             ],
             'statuses' => [
                 ['value' => 'active', 'label' => 'Activas'],
                 ['value' => 'inactive', 'label' => 'Inactivas'],
                 ['value' => 'archived', 'label' => 'Archivadas'],
             ],
+            'segments' => $this->segmentOptions($segment),
             'pagination' => [
                 'currentPage' => $paginator->currentPage(),
                 'lastPage' => $paginator->lastPage(),
@@ -84,6 +101,36 @@ class PersonController extends Controller
             'canCreate' => Gate::allows('create', Person::class),
             'canArchive' => Gate::allows('archiveAny', Person::class),
         ]);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function segmentOptions(?Segment $selected): array
+    {
+        if (! Gate::allows('viewAny', Segment::class)) {
+            return [];
+        }
+
+        return Segment::query()
+            ->where(function ($query) use ($selected): void {
+                $query->where('is_active', true);
+
+                if ($selected !== null && ! $selected->is_active) {
+                    $query->orWhereKey($selected->getKey());
+                }
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'type', 'is_active'])
+            ->map(fn (Segment $segment): array => [
+                'id' => $segment->getKey(),
+                'name' => $segment->name,
+                'type' => $segment->type,
+                'typeLabel' => SegmentType::tryFrom((string) $segment->type)?->label() ?? $segment->type,
+                'isActive' => $segment->is_active,
+            ])
+            ->values()
+            ->all();
     }
 
     public function create(Church $church): Response
