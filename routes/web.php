@@ -18,6 +18,7 @@ use App\Http\Controllers\CustomFieldDefinitionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InvitationAcceptanceController;
 use App\Http\Controllers\PersonController;
+use App\Http\Controllers\SegmentController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -112,6 +113,36 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/churches/{church}/settings/audit', [ChurchAuditController::class, 'index'])
         ->middleware(['church', 'permission:church.audit.view'])
         ->name('churches.audit.index');
+
+    Route::get('/churches/{church}/segments/create', [SegmentController::class, 'create'])
+        ->middleware(['church', 'permission:segments.manage'])
+        ->name('segments.create');
+
+    Route::middleware(['church', 'permission:segments.view'])->group(function (): void {
+        Route::get('/churches/{church}/segments', [SegmentController::class, 'index'])
+            ->name('segments.index');
+        Route::get('/churches/{church}/segments/preview', [SegmentController::class, 'preview'])
+            ->name('segments.preview');
+        Route::get('/churches/{church}/segments/{segment}', [SegmentController::class, 'show'])
+            ->name('segments.show');
+    });
+
+    Route::middleware(['church', 'permission:segments.manage'])->group(function (): void {
+        Route::get('/churches/{church}/segments/{segment}/edit', [SegmentController::class, 'edit'])
+            ->name('segments.edit');
+        Route::post('/churches/{church}/segments', [SegmentController::class, 'store'])
+            ->name('segments.store');
+        Route::put('/churches/{church}/segments/{segment}', [SegmentController::class, 'update'])
+            ->name('segments.update');
+        Route::patch('/churches/{church}/segments/{segment}/toggle', [SegmentController::class, 'toggle'])
+            ->name('segments.toggle');
+        Route::delete('/churches/{church}/segments/{segment}', [SegmentController::class, 'destroy'])
+            ->name('segments.destroy');
+        Route::post('/churches/{church}/segments/{segment}/members', [SegmentController::class, 'storeMember'])
+            ->name('segments.members.store');
+        Route::delete('/churches/{church}/segments/{segment}/members/{person}', [SegmentController::class, 'destroyMember'])
+            ->name('segments.members.destroy');
+    });
 
     Route::middleware(['church', 'permission:church.members.manage'])->group(function (): void {
         Route::get('/churches/{church}/settings/members', [ChurchMemberController::class, 'index'])

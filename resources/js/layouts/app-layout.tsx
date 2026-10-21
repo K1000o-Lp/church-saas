@@ -2,6 +2,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import {
     CalendarDays,
     Church,
+    Filter,
     CreditCard,
     HeartHandshake,
     LayoutDashboard,
@@ -35,6 +36,14 @@ function buildPrimaryNav(currentChurch: CurrentChurch | null): NavItem[] {
             label: 'Personas',
             href: churchPath && permissions.includes('people.view') ? `${churchPath}/people` : null,
             icon: Users,
+        },
+        {
+            label: 'Segmentos',
+            href:
+                churchPath && permissions.includes('segments.view')
+                    ? `${churchPath}/segments`
+                    : null,
+            icon: Filter,
         },
         { label: 'Eventos', href: null, icon: CalendarDays },
         { label: 'Finanzas', href: null, icon: Wallet },

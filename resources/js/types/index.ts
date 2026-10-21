@@ -381,3 +381,74 @@ export type ChurchBilling = {
     canView: true;
     invoices: ChurchInvoice[];
 } | null;
+
+export type SegmentTypeValue = 'dynamic' | 'static';
+
+export type SegmentFilterOption = {
+    id: number;
+    name: string;
+    type: SegmentTypeValue;
+    typeLabel: string;
+    isActive: boolean;
+};
+
+export type SegmentTypeOption = {
+    value: SegmentTypeValue;
+    label: string;
+    description: string;
+};
+
+export type SegmentFieldTypeValue =
+    | 'text'
+    | 'number'
+    | 'date'
+    | 'boolean'
+    | 'select'
+    | 'multiselect';
+
+export type SegmentOperatorOption = {
+    value: string;
+    label: string;
+    requiresValue: boolean;
+};
+
+export type SegmentField = {
+    source: 'person' | 'custom';
+    key: string;
+    label: string;
+    type: SegmentFieldTypeValue;
+    options: CustomFieldOption[];
+    operators: SegmentOperatorOption[];
+};
+
+export type SegmentConditionValue = string | number | string[] | null;
+
+export type SegmentCondition = {
+    source: 'person' | 'custom';
+    field: string;
+    operator: string;
+    value: SegmentConditionValue;
+};
+
+export type SegmentRuleSet = {
+    version: number;
+    match: 'all' | 'any';
+    conditions: SegmentCondition[];
+};
+
+export type SegmentSummary = {
+    id: number;
+    name: string;
+    description: string | null;
+    type: SegmentTypeValue;
+    typeLabel: string;
+    isActive: boolean;
+    memberCount: number;
+    rulesSummary: string | null;
+    createdAt: string | null;
+};
+
+export type SegmentDetail = SegmentSummary & {
+    rules: SegmentRuleSet | null;
+    updatedAt: string | null;
+};

@@ -27,6 +27,14 @@ final class DomainAudit
 
     public const CUSTOM_FIELD_DEACTIVATED = 'custom_field.deactivated';
 
+    public const SEGMENT_CREATED = 'segment.created';
+
+    public const SEGMENT_UPDATED = 'segment.updated';
+
+    public const SEGMENT_DELETED = 'segment.deleted';
+
+    public const SEGMENT_MEMBERS_CHANGED = 'segment.members_changed';
+
     public const MEMBERSHIP_ROLE_CHANGED = 'membership.role_changed';
 
     public const MEMBERSHIP_REMOVED = 'membership.removed';
