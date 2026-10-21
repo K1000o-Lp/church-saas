@@ -34,8 +34,8 @@ Colas, tareas programadas, webhooks y comandos no heredan una petición confiabl
 
 La creación de iglesias es **autoservicio**; el backoffice de plataforma administra tenants
 existentes, pero no es el mecanismo de alta. Cualquier persona puede crear una cuenta en
-`/register`; al quedar autenticada inicia el onboarding en `/onboarding/church` y, en una sola
-transacción, se crean la iglesia, su membresía `admin` activa, la suscripción al plan Comunidad
+`/register`; debe verificar su correo y luego inicia el onboarding en `/onboarding/church`. En una
+sola transacción se crean la iglesia, su membresía `admin` activa, la suscripción al plan Comunidad
 y el catálogo de monedas (principal como default y adicionales opcionales dentro del límite del
 plan inicial). Después se guarda `current_church_id` en sesión y se redirige a la iglesia; a
 partir de ahí aplican las mismas comprobaciones de membresía que en cualquier otra ruta.
@@ -45,7 +45,10 @@ Decisiones asociadas:
 - El creador recibe el rol `admin` únicamente en la iglesia creada. La administración de
   plataforma usa una identidad separada, no un rol dentro de `users`.
 - Un usuario con membresías activas puede crear iglesias adicionales y queda como `admin` de
-  cada una. Esto evita bloquear casos de líderes con más de una iglesia.
+  cada una. Esto evita bloquear casos de líderes con más de una iglesia; la creación está limitada
+  por usuario para contener abuso, no por un tope duro de iglesias.
+- El registro público exige verificación de correo. La aceptación de una invitación verifica el
+  correo porque el token se entrega a ese buzón.
 - El país se limita inicialmente a Venezuela y Colombia; la zona horaria se valida como IANA.
   El catálogo inicial de monedas es USD, VES, COP y EUR.
 - La creación es transaccional: si falla la membresía o una moneda, no queda iglesia parcial.
@@ -241,7 +244,7 @@ Medios candidatos por validar: Pago Móvil y Zelle para escenarios en Venezuela;
 
 ## Seguridad y privacidad
 
-- Autenticación segura, sesiones y recuperación de cuenta con controles acordes al riesgo; MFA como opción a evaluar especialmente para administradores y finanzas.
+- Autenticación segura, sesiones y recuperación de cuenta con controles acordes al riesgo; MFA como opción a evaluar especialmente para administradores y finanzas. El registro exige verificación de correo, la recuperación no enumera cuentas y los eventos de autenticación se registran en `auth_events`.
 - Mínimo privilegio y separación de responsabilidades para datos pastorales y financieros; definir visibilidad de notas y campos sensibles.
 - Cifrar transporte y datos/respaldos según capacidades operativas; gestionar secretos fuera del control de versiones y rotarlos.
 - Validar firmas, origen, replay e idempotencia de webhooks; nunca confiar en valores financieros enviados por el navegador.

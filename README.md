@@ -8,7 +8,7 @@ Las capacidades, integraciones, límites y precios descritos aquí son objetivos
 
 ## Estado actual
 
-El scaffold Laravel 12 y el primer código de modelos, contexto de tenancy y migraciones ya están escritos. El esquema se ejecutó en un PostgreSQL local de desarrollo y las pruebas de esquema usan una base PostgreSQL separada. Existe autenticación web por sesión con login/logout, registro público con onboarding posterior, recuperación de contraseña, selección de iglesia por membresía, resolución de tenant por petición, onboarding autoservicio que crea iglesia, membresía `admin` y monedas en una transacción, RBAC formal con roles y permisos, invitaciones por correo, gestión de miembros, backoffice exclusivo de plataforma en `/admin` con auditoría, administración de estados y metadatos, planes/límites/funciones con suscripción y overrides por iglesia, cambio de plan autoservicio para administradores de iglesia, facturación manual en USD con pagos y estados, purga auditada de iglesias archivadas, auditoría de dominio, contexto tenant explícito para jobs/comandos, y un módulo de personas con campos personalizados. La interfaz Inertia + React + TypeScript incluye registro, login, recuperación de contraseña, panel de iglesias, onboarding, pantalla de plan, historial de facturas, directorio de personas y configuración de miembros/campos. Faltan MFA, runner de workflows, pagos automáticos e integraciones productivas. Las decisiones de onboarding, backoffice, planes y facturación están documentadas en [`docs/architecture/overview.md`](docs/architecture/overview.md#onboarding-de-iglesias), [`docs/architecture/overview.md`](docs/architecture/overview.md#backoffice-de-plataforma), [`docs/architecture/overview.md`](docs/architecture/overview.md#planes-límites-y-funciones) y [`docs/architecture/overview.md`](docs/architecture/overview.md#facturación-manual).
+El scaffold Laravel 12 y el primer código de modelos, contexto de tenancy y migraciones ya están escritos. El esquema se ejecutó en un PostgreSQL local de desarrollo y las pruebas de esquema usan una base PostgreSQL separada. Existe autenticación web por sesión con login/logout, registro público con verificación de correo y onboarding posterior, recuperación de contraseña, selección de iglesia por membresía, resolución de tenant por petición, onboarding autoservicio que crea iglesia, membresía `admin` y monedas en una transacción, RBAC formal con roles y permisos, invitaciones por correo, gestión de miembros, backoffice exclusivo de plataforma en `/admin` con auditoría, administración de estados y metadatos, planes/límites/funciones con suscripción y overrides por iglesia, cambio de plan autoservicio para administradores de iglesia, facturación manual en USD con pagos y estados, purga auditada de iglesias archivadas, auditoría de dominio, contexto tenant explícito para jobs/comandos, y un módulo de personas con campos personalizados. La interfaz Inertia + React + TypeScript incluye registro, login, recuperación de contraseña, panel de iglesias, onboarding, pantalla de plan, historial de facturas, directorio de personas y configuración de miembros/campos. Faltan MFA, runner de workflows, pagos automáticos e integraciones productivas. Las decisiones de onboarding, backoffice, planes y facturación están documentadas en [`docs/architecture/overview.md`](docs/architecture/overview.md#onboarding-de-iglesias), [`docs/architecture/overview.md`](docs/architecture/overview.md#backoffice-de-plataforma), [`docs/architecture/overview.md`](docs/architecture/overview.md#planes-límites-y-funciones) y [`docs/architecture/overview.md`](docs/architecture/overview.md#facturación-manual).
 
 La matriz de planes se aplica con la migración de datos y puede resincronizarse de forma idempotente; las iglesias sin suscripción reciben Comunidad:
 
@@ -16,8 +16,9 @@ La matriz de planes se aplica con la migración de datos y puede resincronizarse
 php artisan plans:sync
 ```
 
-Una persona puede crear su cuenta gratis en `/register`; tras el onboarding, la iglesia queda en
-el plan Comunidad. El administrador de la iglesia puede cambiarla a otro plan desde
+Una persona puede crear su cuenta gratis en `/register`; debe verificar su correo antes de crear
+la iglesia. Las invitaciones válidas también verifican el correo porque el token se entrega a ese
+buzón. Tras el onboarding, la iglesia queda en el plan Comunidad. El administrador de la iglesia puede cambiarla a otro plan desde
 `/churches/{church}/plan`. El cambio es inmediato y queda auditado; la facturación se sigue
 emitiendo manualmente desde `/admin`.
 
@@ -86,11 +87,22 @@ Los roles viven en `App\Support\Auth\Role` y la matriz en `RolePermissions`; las
 
 ### Invitaciones y recuperación
 
-Un `admin` puede invitar por correo desde la configuración de miembros. El token se guarda hasheado, vence en 7 días y se acepta una sola vez; una persona nueva puede crear su cuenta desde la invitación y una existente inicia sesión. La recuperación de contraseña usa el broker de Laravel, responde de forma genérica y elimina las sesiones abiertas al completar el cambio.
+Un `admin` puede invitar por correo desde la configuración de miembros. El token se guarda hasheado, vence en 7 días y se acepta una sola vez; una persona nueva puede crear su cuenta desde la invitación y una existente inicia sesión. La invitación a un correo de plataforma se rechaza, y una membresía suspendida no puede reactivarse aceptando una invitación. El envío de invitaciones y la creación de iglesias están limitados por usuario.
+
+La recuperación de contraseña usa el broker de Laravel, responde siempre de forma genérica (sin enumerar cuentas) y elimina las sesiones abiertas al completar el cambio. `AuthenticateSession` invalida además sesiones y cookies “remember me” cuando cambia la contraseña. Los eventos `auth.login`, `auth.logout` y `auth.password_reset` se registran en `auth_events` sin correos, tokens ni contraseñas.
 
 ### Auditoría y jobs
 
-Las acciones sensibles de dominio se registran en `church_audit_entries` con actor, iglesia, acción y metadatos mínimos. Los jobs deben extender `TenantAwareJob` y llevar IDs explícitos; el contexto se establece y limpia con `CurrentChurch::run`, y la iglesia/membresía/permiso se revalidan al ejecutar.
+Las acciones sensibles de dominio se registran en `church_audit_entries` con actor, iglesia, acción y metadatos mínimos. Los eventos de autenticación se registran aparte en `auth_events`. Los jobs deben extender `TenantAwareJob` y llevar IDs explícitos; el contexto se establece y limpia con `CurrentChurch::run`, y la iglesia/membresía/permiso se revalidan al ejecutar.
+
+## Checklist de producción
+
+- `APP_DEBUG=false` y `APP_ENV=production`.
+- `SESSION_DRIVER=database` y `SESSION_SECURE_COOKIE=true` con HTTPS.
+- Configurar un mailer real: sin verificación de correo los usuarios nuevos no completan el onboarding.
+- Definir `TRUSTED_PROXIES` si la aplicación está detrás de un balanceador o proxy.
+- Ejecutar la cola con un driver durable si se añaden jobs; las invitaciones actuales se envían de forma síncrona.
+- MFA para cuentas de plataforma queda pendiente como endurecimiento separado.
 
 ## Navegación
 
