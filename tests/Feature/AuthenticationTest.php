@@ -5,12 +5,14 @@ namespace Tests\Feature;
 use App\Models\Church;
 use App\Models\ChurchMembership;
 use App\Models\User;
+use App\Support\Audit\AuthAudit;
 use App\Support\Plans\PlanMatrix;
 use App\Support\Tenancy\CurrentChurch;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -36,6 +38,10 @@ class AuthenticationTest extends TestCase
 
         $this->assertAuthenticatedAs($user);
         $response->assertRedirect(route('dashboard'));
+        $this->assertDatabaseHas('auth_events', [
+            'user_id' => $user->getKey(),
+            'event' => AuthAudit::LOGIN,
+        ]);
     }
 
     public function test_users_cannot_authenticate_with_invalid_credentials(): void
@@ -59,6 +65,10 @@ class AuthenticationTest extends TestCase
             ->assertRedirect(route('login'));
 
         $this->assertGuest();
+        $this->assertDatabaseHas('auth_events', [
+            'user_id' => $user->getKey(),
+            'event' => AuthAudit::LOGOUT,
+        ]);
     }
 
     public function test_guests_are_redirected_to_login_from_the_dashboard(): void
@@ -193,6 +203,26 @@ class AuthenticationTest extends TestCase
             ->get('/tenant-context')
             ->assertOk()
             ->assertJson(['church_id' => $church->id]);
+    }
+
+    public function test_the_shared_church_prop_is_available_without_a_route_church_parameter(): void
+    {
+        $user = $this->createUser();
+        $church = $this->createChurch('iglesia-prop-sesion');
+        $this->createMembership($church, $user);
+
+        Route::middleware(['web', 'auth', 'church'])->get('/tenant-inertia-context', function () {
+            return Inertia::render('dashboard');
+        });
+
+        $this->actingAs($user)
+            ->withSession(['current_church_id' => $church->id])
+            ->get('/tenant-inertia-context')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('dashboard')
+                ->where('currentChurch.name', $church->name)
+                ->where('currentChurch.role', 'admin'));
     }
 
     private function createUser(): User

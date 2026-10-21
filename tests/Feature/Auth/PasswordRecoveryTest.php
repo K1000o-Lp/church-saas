@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use App\Support\Audit\AuthAudit;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +39,37 @@ class PasswordRecoveryTest extends TestCase
             ->assertSessionHas('success');
     }
 
+    public function test_repeated_requests_do_not_reveal_whether_an_account_exists(): void
+    {
+        Notification::fake();
+
+        User::factory()->create(['email' => 'known@example.com']);
+
+        $this->post('/forgot-password', ['email' => 'known@example.com'])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success');
+
+        $this->post('/forgot-password', ['email' => 'known@example.com'])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success');
+
+        $this->post('/forgot-password', ['email' => 'unknown@example.com'])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success');
+    }
+
+    public function test_changing_the_password_invalidates_existing_authenticated_sessions(): void
+    {
+        $user = User::factory()->create(['password' => Hash::make('old-password')]);
+
+        $this->actingAs($user)->get('/dashboard')->assertOk();
+
+        $user->forceFill(['password' => Hash::make('new-password-123')])->save();
+
+        $this->get('/dashboard')->assertRedirect(route('login'));
+        $this->assertGuest();
+    }
+
     public function test_a_user_can_reset_the_password_and_old_sessions_are_removed(): void
     {
         $user = User::factory()->create([
@@ -66,6 +98,10 @@ class PasswordRecoveryTest extends TestCase
         $this->assertTrue(Hash::check('new-password-123', $user->refresh()->password));
         $this->assertDatabaseMissing('sessions', ['user_id' => $user->getKey()]);
         $this->assertNotNull($user->refresh()->remember_token);
+        $this->assertDatabaseHas('auth_events', [
+            'user_id' => $user->getKey(),
+            'event' => AuthAudit::PASSWORD_RESET,
+        ]);
     }
 
     public function test_an_invalid_token_is_rejected(): void

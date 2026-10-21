@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
 
 class CreatePlatformAdminCommand extends Command
 {
@@ -30,7 +31,7 @@ class CreatePlatformAdminCommand extends Command
         ], [
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:255'],
-            'password' => ['required', 'string', 'min:12'],
+            'password' => ['required', 'string', 'max:255', Password::min(12)->letters()],
         ]);
 
         if ($validator->fails()) {

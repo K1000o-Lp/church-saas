@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Models\User;
+use App\Support\Audit\AuthAudit;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,15 +27,19 @@ class NewPasswordController extends Controller
 
     public function store(ResetPasswordRequest $request): RedirectResponse
     {
+        $resetUser = null;
+
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
-            function (User $user, string $password): void {
+            function (User $user, string $password) use (&$resetUser): void {
                 $user->forceFill([
                     'password' => $password,
                     'remember_token' => Str::random(60),
                 ])->save();
 
                 DB::table('sessions')->where('user_id', $user->getKey())->delete();
+
+                $resetUser = $user;
 
                 event(new PasswordReset($user));
             },
@@ -44,6 +49,10 @@ class NewPasswordController extends Controller
             return back()->withErrors([
                 'email' => __($status),
             ]);
+        }
+
+        if ($resetUser instanceof User) {
+            AuthAudit::record(AuthAudit::PASSWORD_RESET, $resetUser);
         }
 
         return redirect()

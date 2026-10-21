@@ -18,15 +18,10 @@ class PasswordResetLinkController extends Controller
 
     public function store(ForgotPasswordRequest $request): RedirectResponse
     {
-        $status = Password::sendResetLink($request->only('email'));
+        Password::sendResetLink($request->only('email'));
 
-        if ($status === Password::RESET_THROTTLED) {
-            return back()->withErrors([
-                'email' => 'Espera un momento antes de solicitar otro enlace.',
-            ]);
-        }
-
-        // Do not reveal whether the email belongs to an account.
+        // Never reveal whether the email belongs to an account, including
+        // the broker's RESET_THROTTLED response which only exists for users.
         return back()->with(
             'success',
             'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.',
