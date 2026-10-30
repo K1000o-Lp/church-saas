@@ -21,4 +21,9 @@ class PipelineStage extends Model
     {
         return $this->hasMany(PastoralFollowUp::class);
     }
+
+    public function progress(): HasMany
+    {
+        return $this->hasMany(PersonPipelineProgress::class);
+    }
 }
