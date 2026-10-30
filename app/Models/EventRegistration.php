@@ -11,11 +11,26 @@ class EventRegistration extends Model
 {
     use BelongsToChurch;
 
-    protected $fillable = ['event_id', 'person_id', 'guest_name', 'status', 'guest_count', 'responded_at'];
+    protected $fillable = [
+        'event_id',
+        'person_id',
+        'guest_name',
+        'status',
+        'payment_status',
+        'guest_count',
+        'responded_at',
+        'public_token_hash',
+        'ticket_code_hash',
+        'issued_at',
+    ];
 
     protected function casts(): array
     {
-        return ['guest_count' => 'integer', 'responded_at' => 'datetime'];
+        return [
+            'guest_count' => 'integer',
+            'responded_at' => 'datetime',
+            'issued_at' => 'datetime',
+        ];
     }
 
     public function event(): BelongsTo
@@ -31,5 +46,10 @@ class EventRegistration extends Model
     public function attendanceRecords(): HasMany
     {
         return $this->hasMany(AttendanceRecord::class);
+    }
+
+    public function receipts(): HasMany
+    {
+        return $this->hasMany(PaymentReceipt::class, 'event_registration_id');
     }
 }
