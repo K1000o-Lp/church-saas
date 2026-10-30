@@ -79,7 +79,7 @@ type PageProps = {
         plan: {
             key: string;
             name: string;
-            priceMinor: number;
+            price: string;
             currencyCode: string;
             billingInterval: string;
             isFree: boolean;

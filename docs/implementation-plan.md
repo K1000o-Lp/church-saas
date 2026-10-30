@@ -65,6 +65,14 @@ Este plan ordena el trabajo desde la validación del problema hasta una primera 
 - ~~Auditoría de dominio y contexto tenant para jobs/comandos.~~ Implementados `church_audit_entries`, `DomainAudit`, `TenantAwareJob`, `CurrentChurch::run` y helpers para comandos con `--church` explícito.
 - ~~Personas, contactos y campos personalizados con validación y permisos.~~ Implementados listado, creación, edición, archivo/restauración, búsqueda, límites de plan, validación dinámica de campos, definiciones administrables y auditoría.
 - ~~Segmentos dinámicos y estáticos.~~ Implementados con reglas JSON validadas por catálogo, evaluación en lectura, membresía manual para estáticos, permisos `segments.view`/`segments.manage`, auditoría, UI Inertia y pruebas de aislamiento. Ver [Segmentos](architecture/overview.md#segmentos). Quedan eventos, RSVP, registro de asistencia y seguimiento pastoral.
+- ~~Servicios y voluntarios.~~ Implementados equipos, planes de culto, ítems ordenados, asignaciones de voluntarios con estados, gating `volunteers`, permisos `teams.*`/`volunteers.manage`, auditoría y pruebas de aislamiento.
+- ~~Pipeline de crecimiento.~~ Implementados `person_pipeline_progress`, etapas configurables, marcado/reapertura idempotente por persona, gating `pastoral_pipeline`, permisos `pastoral.*` y auditoría. Goals se unifican con `pipeline_stages`.
+- ~~Entradas QR y check-in.~~ Implementados emisión de token hasheado (`public_token_hash`/`ticket_code_hash`), página pública de entrada con QR, check-in idempotente por evento con permiso `attendance.record` y validación de pago.
+- ~~Comprobantes manuales.~~ Implementados `payment_receipts`, enlace privado por token hasheado, subida de imagen/PDF a disco privado, bandeja por evento, verificación/rechazo transaccional, actualización de `payment_status` y auditoría.
+- ~~Portal público y marca.~~ Implementados `/iglesias/{slug}` y detalle de evento público, registro con deduplicación y alta de `visitor`, cupo/lista de espera, throttle/honeypot, marca en `churches.settings.branding` y logo en disco `public` gated por `white_label`.
+- ~~Eventos, RSVP y asistencia.~~ Implementados CRUD de eventos con cupo, visibilidad, costo y ventana de registro; inscripciones internas con RSVP y `payment_status`; lista de espera transaccional; asistencia manual auditada; aislamiento tenant y pruebas de límites.
+- ~~Familias y vínculos.~~ Implementada `person_relationships` con relaciones tipadas, reciprocidad para cónyuge/hermano y padre/hijo, aislamiento tenant, permisos de edición y auditoría.
+- ~~Citas y consejería.~~ Implementadas `appointments`, permisos `appointments.*`, notas privadas con `appointments.notes.view`, CRUD, reagendado/cancelación/completado, aislamiento tenant y auditoría. Un líder solo gestiona sus propias citas.
 - Servicios/cultos, equipos de servidores y asignaciones básicas según priorización.
 - Importación/exportación controlada y manejo de duplicados, si se valida como necesidad del MVP.
 
@@ -75,7 +83,7 @@ Este plan ordena el trabajo desde la validación del problema hasta una primera 
 **Depende de:** fases 3 y 4; además de validación financiera y regulatoria.
 
 **Trabajo y entregables:**
-- Registro de diezmos y ofrendas asociados opcionalmente a fondos tenant-owned, y conciliación manual inicial, con montos no negativos enteros en unidad menor y moneda explícita; configurar catálogo de monedas admitidas por iglesia.
+- Registro de diezmos y ofrendas asociados opcionalmente a fondos tenant-owned, y conciliación manual inicial, con montos no negativos decimales exactos (`numeric(14,2)`) y moneda explícita; configurar catálogo de monedas admitidas por iglesia.
 - Reportes por período, moneda y método; correcciones mediante registros auditables, no edición opaca de historia.
 - Evaluar Pago Móvil y Zelle en Venezuela, y Wompi, PayU, PSE u otros medios adecuados en Colombia. Diseñar adaptadores solo después de confirmar disponibilidad, condiciones, flujo de liquidación y requisitos de cada proveedor.
 

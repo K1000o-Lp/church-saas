@@ -137,7 +137,7 @@ factura automática. La facturación del nuevo plan se emite manualmente desde `
 ## Facturación manual
 
 `invoices` y `payments` son registros de plataforma ligados a una iglesia, con snapshot de
-nombre y slug para conservar historia. Los montos son enteros en centavos y la moneda es USD;
+nombre y slug para conservar historia. Los montos son decimales exactos (`numeric(14,2)`) y la moneda es USD;
 no se manejan impuestos, PDF ni cobro automático en esta fase. Los estados son `issued`,
 `overdue`, `paid` y `void`. Una factura emitida pasa a `overdue` automáticamente al consultar
 facturación si su vencimiento ya pasó; los pagos parciales se aceptan hasta cubrir el total y,
@@ -179,9 +179,39 @@ La recuperación de contraseña usa el broker `users`, responde de forma genéri
 
 ## Personas y campos personalizados
 
-El directorio implementa listado con búsqueda/paginación, creación, edición, archivo/restauración, permisos y auditoría. `people.custom_fields` JSONB almacena valores tipados; `custom_field_definitions` define clave inmutable, etiqueta, tipo y opciones. `CustomFieldRegistry` genera reglas dinámicas, normaliza valores y conserva valores de definiciones desactivadas. El campo clave no cambia y las definiciones se desactivan en lugar de borrarse.
+El directorio implementa listado con búsqueda/paginación, creación, edición, archivo/restauración, relaciones familiares tipadas, permisos y auditoría. `people.custom_fields` JSONB almacena valores tipados; `custom_field_definitions` define clave inmutable, etiqueta, tipo y opciones. `CustomFieldRegistry` genera reglas dinámicas, normaliza valores y conserva valores de definiciones desactivadas. El campo clave no cambia y las definiciones se desactivan en lugar de borrarse.
 
 El índice GIN existente sobre `people.custom_fields` no garantiza acelerar filtros `->>`; las consultas concretas deben medirse y, si hace falta, crear índices de expresión. Los límites de personas se aplican al crear mediante `Person` y `Entitlements`.
+
+## Entradas digitales y check-in
+
+Las inscripciones públicas reciben un token aleatorio; se guarda su hash en `public_token_hash` y, cuando la entrada está habilitada, en `ticket_code_hash` con `issued_at`. Los eventos gratuitos emiten la entrada al inscribirse; los eventos con costo la emiten al verificar el comprobante. La página `/entradas/{token}` muestra el pase con QR. El personal con `attendance.record` usa `/churches/{church}/events/{event}/check-in` para pegar la URL/código o escanear el QR; el servidor valida el hash contra el evento, exige pago aprobado cuando aplica y registra asistencia `present` de forma idempotente con origen `device`.
+
+## Comprobantes manuales
+
+Las inscripciones a eventos con costo generan un enlace privado por token (`/comprobantes/{token}`) donde la persona sube una imagen o PDF con monto y referencia. El archivo se guarda en el disco privado `local`; el token se conserva hasheado en `event_registrations.public_token_hash`. El envío deja el comprobante en `pending` y la inscripción en `payment_status = under_review`. Roles con `events.manage` revisan la bandeja del evento, descargan el archivo y verifican o rechazan. Verificar marca el comprobante `verified`, el pago `paid` y la inscripción como confirmada; rechazar permite un nuevo envío y deja motivo auditable. Todas las acciones se registran como `receipt.*`.
+
+## Portal público y marca
+
+Cada iglesia activa tiene un portal público en `/iglesias/{slug}` con sus eventos publicados y visibles. El detalle `/iglesias/{slug}/eventos/{eventSlug}` permite inscripción abierta con nombre, correo o teléfono y acompañantes. El servidor resuelve la iglesia por slug, exige estado `active`, evento `published` y `is_public`; los casos privados, inactivos o inexistentes responden 404. El registro público deduplica por correo o teléfono, crea personas con estado `visitor` cuando no existen y aplica cupo/lista de espera dentro de una transacción con bloqueo. Está limitado por throttle y un honeypot.
+
+La marca (lema, colores, horarios y logo) vive en `churches.settings.branding` y solo se edita con la función `white_label` (Ministerio Pro o override). El logo se guarda en el disco `public`; en despliegue requiere `php artisan storage:link`. El portal básico funciona sin personalización.
+
+## Eventos, RSVP y asistencia
+
+Los eventos admiten borrador/publicación, cupo opcional, visibilidad pública, costo con moneda habilitada y ventana de inscripción. Las inscripciones internas registran persona o invitado, acompañantes y estado RSVP; cuando el evento tiene costo se crea en `payment_status = pending` hasta que exista un comprobante aprobado. La capacidad se controla en servidor dentro de una transacción con bloqueo: al llenarse, las nuevas inscripciones pasan a `waitlisted`. La asistencia se registra por inscripción o persona con estados `present`, `absent`, `late` y `excused`, y queda auditada. Permisos: `events.view`, `events.manage` y `attendance.record`.
+
+## Servicios y voluntarios
+
+`service_plans` programa cultos con fecha, lugar y estado (`draft`, `published`, `completed`, `cancelled`); `service_items` arma el orden del servicio y puede asociar un equipo; `volunteer_assignments` asigna personas a cada ítem con rol y estado (`invited`, `confirmed`, `declined`, `cancelled`). Los equipos viven en `ministry_teams`. El módulo se habilita con la función `volunteers` (Crecimiento o superior, u override) y usa permisos `teams.view`, `teams.manage` y `volunteers.manage`. Publicar un culto exige fecha de inicio; las asignaciones duplicadas por persona/ítem se rechazan y todas las acciones se auditan.
+
+## Pipeline de crecimiento
+
+`pipeline_stages` define las etapas ordenadas de discipulado (por ejemplo Nuevo → Bautizado → Líder) y `person_pipeline_progress` registra el avance por persona de forma idempotente. La ficha de persona muestra las etapas activas y permite completarlas o reabrirlas a roles con `pastoral.manage`; `pastoral.view` permite consultarlas. La función `pastoral_pipeline` (Crecimiento o superior, u override) habilita el módulo. Las etapas se configuran en `/churches/{church}/settings/pipeline`. No se mantiene una tabla `goals` separada: la etapa es la meta.
+
+## Citas y consejería
+
+`appointments` registra citas entre una persona y un líder (administrador, pastor o líder). Cada cita tiene fecha, duración, motivo, estado (`scheduled`, `rescheduled`, `completed`, `cancelled`, `no_show`) y notas privadas. Los roles `admin` y `pastor` ven todas las citas y notas de la iglesia; un líder solo ve y gestiona las que atiende, y el servidor fuerza que el anfitrión sea él mismo al crear o editar. `appointments.notes.view` controla la exposición de notas en props; el listado nunca las incluye. Las acciones se auditan como `appointment.*` y las citas están aisladas por `church_id`.
 
 ## Segmentos
 
