@@ -49,4 +49,9 @@ class Person extends Model
     {
         return $this->hasMany(PastoralFollowUp::class);
     }
+
+    public function relationships(): HasMany
+    {
+        return $this->hasMany(PersonRelationship::class);
+    }
 }
