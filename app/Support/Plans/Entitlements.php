@@ -8,6 +8,7 @@ use App\Models\ChurchFeatureOverride;
 use App\Models\ChurchLimitOverride;
 use App\Models\ChurchSubscription;
 use App\Models\Plan;
+use App\Support\Billing\Money;
 
 final class Entitlements
 {
@@ -208,10 +209,10 @@ final class Entitlements
                 'key' => $this->plan->key,
                 'name' => $this->plan->name,
                 'description' => $this->plan->description,
-                'priceMinor' => $this->plan->price_minor,
+                'price' => Money::format($this->plan->price),
                 'currencyCode' => $this->plan->currency_code,
                 'billingInterval' => $this->plan->billing_interval,
-                'isFree' => $this->plan->price_minor === 0,
+                'isFree' => Money::isZero($this->plan->price),
             ],
             'subscription' => $this->subscription === null ? null : [
                 'status' => $this->subscription->status,

@@ -7,12 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { dateInputValue, formatMoneyMinor } from '@/lib/format';
+import { dateInputValue, formatMoney } from '@/lib/format';
 import type { PaymentMethodOption, PaymentMethodValue } from '@/types';
 
 type Props = {
     invoiceId: number;
-    remainingMinor: number;
+    remaining: string;
     currencyCode: string;
     methods: PaymentMethodOption[];
     canEdit: boolean;
@@ -20,13 +20,13 @@ type Props = {
 
 export function InvoicePaymentForm({
     invoiceId,
-    remainingMinor,
+    remaining,
     currencyCode,
     methods,
     canEdit,
 }: Props) {
     const form = useForm({
-        amount: (remainingMinor / 100).toFixed(2),
+        amount: remaining,
         method: methods[0]?.value ?? 'transfer',
         reference: '',
         notes: '',
@@ -51,7 +51,7 @@ export function InvoicePaymentForm({
                 <Banknote className="size-4 text-muted-foreground" />
                 <h3 className="text-sm font-semibold">Registrar pago</h3>
                 <span className="text-xs text-muted-foreground">
-                    Saldo {formatMoneyMinor(remainingMinor, currencyCode)}
+                    Saldo {formatMoney(remaining, currencyCode)}
                 </span>
             </div>
 

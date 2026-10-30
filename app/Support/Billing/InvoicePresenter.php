@@ -55,9 +55,9 @@ final class InvoicePresenter
             'status' => $invoice->status,
             'statusLabel' => InvoiceStatus::label($invoice->status),
             'currencyCode' => $invoice->currency_code,
-            'amountMinor' => $invoice->amount_minor,
-            'paidMinor' => $invoice->paidMinor(),
-            'remainingMinor' => $invoice->remainingMinor(),
+            'amount' => $invoice->amount,
+            'paid' => $invoice->paidAmount(),
+            'remaining' => $invoice->remainingAmount(),
             'description' => $invoice->description,
             'notes' => $invoice->notes,
             'issuedAt' => $invoice->issued_at?->toIso8601String(),
@@ -75,7 +75,7 @@ final class InvoicePresenter
     {
         return [
             'id' => $payment->getKey(),
-            'amountMinor' => $payment->amount_minor,
+            'amount' => $payment->amount,
             'currencyCode' => $payment->currency_code,
             'method' => $payment->method,
             'methodLabel' => PaymentMethod::label($payment->method),

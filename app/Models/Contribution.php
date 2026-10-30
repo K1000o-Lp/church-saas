@@ -10,11 +10,11 @@ class Contribution extends Model
 {
     use BelongsToChurch;
 
-    protected $fillable = ['person_id', 'fund_id', 'amount_minor', 'currency_code', 'method', 'status', 'contributed_at', 'reference'];
+    protected $fillable = ['person_id', 'fund_id', 'amount', 'currency_code', 'method', 'status', 'contributed_at', 'reference'];
 
     protected function casts(): array
     {
-        return ['amount_minor' => 'integer', 'contributed_at' => 'datetime'];
+        return ['amount' => 'decimal:2', 'contributed_at' => 'datetime'];
     }
 
     public function person(): BelongsTo

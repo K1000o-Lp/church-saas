@@ -116,13 +116,13 @@ class InvoiceController extends Controller
 
         /** @var array{amount: string, description?: ?string, notes?: ?string, due_at?: ?string} $data */
         $data = $request->validated();
-        $amountMinor = Money::toMinor($data['amount']);
+        $amount = Money::normalize($data['amount']);
         $issuedAt = now();
         $dueAt = isset($data['due_at']) && $data['due_at'] !== null
             ? Carbon::parse($data['due_at'])
             : null;
 
-        $invoice = DB::transaction(function () use ($church, $data, $amountMinor, $issuedAt, $dueAt, $admin): Invoice {
+        $invoice = DB::transaction(function () use ($church, $data, $amount, $issuedAt, $dueAt, $admin): Invoice {
             $invoice = Invoice::create([
                 'church_id' => $church->getKey(),
                 'church_name' => $church->name,
@@ -130,7 +130,7 @@ class InvoiceController extends Controller
                 'number' => 'PENDING-'.Str::ulid(),
                 'status' => InvoiceStatus::ISSUED,
                 'currency_code' => Money::CURRENCY,
-                'amount_minor' => $amountMinor,
+                'amount' => $amount,
                 'description' => $data['description'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'issued_at' => $issuedAt,
@@ -149,7 +149,7 @@ class InvoiceController extends Controller
             PlatformAudit::record($admin, PlatformAudit::INVOICE_ISSUED, $church, [
                 'invoiceId' => $invoice->getKey(),
                 'number' => $invoice->number,
-                'amountMinor' => $invoice->amount_minor,
+                'amount' => $invoice->amount,
                 'currencyCode' => $invoice->currency_code,
                 'dueAt' => $invoice->due_at?->toIso8601String(),
             ]);
@@ -230,7 +230,7 @@ class InvoiceController extends Controller
                 'from' => $from,
                 'to' => $target,
                 'reason' => $data['reason'] ?? null,
-                'amountMinor' => $locked->amount_minor,
+                'amount' => $locked->amount,
             ]);
         });
 
@@ -253,10 +253,10 @@ class InvoiceController extends Controller
 
         /** @var array{amount: string, method: string, reference?: ?string, notes?: ?string, paid_at: string} $data */
         $data = $request->validated();
-        $amountMinor = Money::toMinor($data['amount']);
+        $amount = Money::normalize($data['amount']);
         $paidAt = Carbon::parse($data['paid_at']);
 
-        DB::transaction(function () use ($invoice, $data, $amountMinor, $paidAt, $admin, $church): void {
+        DB::transaction(function () use ($invoice, $data, $amount, $paidAt, $admin, $church): void {
             /** @var Invoice $locked */
             $locked = Invoice::query()
                 ->whereKey($invoice->getKey())
@@ -275,9 +275,9 @@ class InvoiceController extends Controller
                 ]);
             }
 
-            $remaining = $locked->remainingMinor();
+            $remaining = $locked->remainingAmount();
 
-            if ($amountMinor > $remaining) {
+            if (Money::compare($amount, $remaining) > 0) {
                 throw ValidationException::withMessages([
                     'amount' => 'El pago excede el saldo pendiente de la factura.',
                 ]);
@@ -286,7 +286,7 @@ class InvoiceController extends Controller
             $payment = Payment::create([
                 'invoice_id' => $locked->getKey(),
                 'church_id' => $locked->church_id,
-                'amount_minor' => $amountMinor,
+                'amount' => $amount,
                 'currency_code' => Money::CURRENCY,
                 'method' => $data['method'],
                 'reference' => $data['reference'] ?? null,
@@ -295,9 +295,9 @@ class InvoiceController extends Controller
                 'recorded_by_platform_admin_id' => $admin->getKey(),
             ]);
 
-            $paidMinor = $locked->paidMinor();
+            $paid = $locked->paidAmount();
 
-            if ($paidMinor >= $locked->amount_minor) {
+            if (Money::compare($paid, $locked->amount) >= 0) {
                 $locked->status = InvoiceStatus::PAID;
                 $locked->paid_at = $paidAt;
             } elseif ($locked->status === InvoiceStatus::ISSUED && $locked->due_at?->isPast()) {
@@ -310,7 +310,7 @@ class InvoiceController extends Controller
                 'invoiceId' => $locked->getKey(),
                 'number' => $locked->number,
                 'paymentId' => $payment->getKey(),
-                'amountMinor' => $payment->amount_minor,
+                'amount' => $payment->amount,
                 'currencyCode' => $payment->currency_code,
                 'method' => $payment->method,
                 'reference' => $payment->reference,

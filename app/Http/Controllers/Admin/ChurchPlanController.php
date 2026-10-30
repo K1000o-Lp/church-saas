@@ -74,7 +74,7 @@ class ChurchPlanController extends Controller
                     'key' => $plan->key,
                     'name' => $plan->name,
                     'description' => $plan->description,
-                    'priceMinor' => $plan->price_minor,
+                    'price' => $plan->price,
                     'currencyCode' => $plan->currency_code,
                     'billingInterval' => $plan->billing_interval,
                     'limits' => $plan->limits->mapWithKeys(fn ($limit): array => [

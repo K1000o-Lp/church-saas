@@ -19,7 +19,7 @@ class Invoice extends Model
         'number',
         'status',
         'currency_code',
-        'amount_minor',
+        'amount',
         'description',
         'notes',
         'issued_at',
@@ -33,7 +33,7 @@ class Invoice extends Model
     protected function casts(): array
     {
         return [
-            'amount_minor' => 'integer',
+            'amount' => 'decimal:2',
             'issued_at' => 'datetime',
             'due_at' => 'datetime',
             'paid_at' => 'datetime',
@@ -56,23 +56,23 @@ class Invoice extends Model
         return $this->belongsTo(PlatformAdmin::class, 'issued_by_platform_admin_id');
     }
 
-    public function paidMinor(): int
+    public function paidAmount(): string
     {
-        if ($this->relationLoaded('payments')) {
-            return (int) $this->payments->sum('amount_minor');
-        }
+        $amounts = $this->relationLoaded('payments')
+            ? $this->payments->pluck('amount')->all()
+            : $this->payments()->pluck('amount')->all();
 
-        return (int) $this->payments()->sum('amount_minor');
+        return Money::add(...$amounts);
     }
 
-    public function remainingMinor(): int
+    public function remainingAmount(): string
     {
-        return max(0, $this->amount_minor - $this->paidMinor());
+        return Money::maxZero(Money::subtract($this->amount, $this->paidAmount()));
     }
 
     public function isFullyPaid(): bool
     {
-        return $this->paidMinor() >= $this->amount_minor;
+        return Money::compare($this->paidAmount(), $this->amount) >= 0;
     }
 
     public function scopeForChurch(Builder $query, Church|int $church): Builder
@@ -103,6 +103,6 @@ class Invoice extends Model
 
     public function money(): string
     {
-        return Money::decimal($this->amount_minor);
+        return Money::format($this->amount);
     }
 }

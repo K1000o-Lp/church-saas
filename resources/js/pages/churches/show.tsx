@@ -14,7 +14,7 @@ import { InvoiceStatusBadge } from '@/components/admin/invoice-status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AppLayout } from '@/layouts/app-layout';
-import { formatDate, formatMoneyMinor } from '@/lib/format';
+import { formatDate, formatMoney } from '@/lib/format';
 import type { ChurchBilling, ChurchCurrencySummary, ChurchSummary, PageProps } from '@/types';
 
 type Props = {
@@ -257,20 +257,20 @@ export default function ChurchShow({ church, membership, currencies, billing }: 
                                                     />
                                                 </td>
                                                 <td className="py-3 pr-4 text-right tabular-nums">
-                                                    {formatMoneyMinor(
-                                                        invoice.amountMinor,
+                                                    {formatMoney(
+                                                        invoice.amount,
                                                         invoice.currencyCode,
                                                     )}
                                                 </td>
                                                 <td className="py-3 pr-4 text-right tabular-nums">
-                                                    {formatMoneyMinor(
-                                                        invoice.paidMinor,
+                                                    {formatMoney(
+                                                        invoice.paid,
                                                         invoice.currencyCode,
                                                     )}
                                                 </td>
                                                 <td className="py-3 pr-4 text-right tabular-nums">
-                                                    {formatMoneyMinor(
-                                                        invoice.remainingMinor,
+                                                    {formatMoney(
+                                                        invoice.remaining,
                                                         invoice.currencyCode,
                                                     )}
                                                 </td>

@@ -4,11 +4,12 @@ namespace App\Support\Plans;
 
 use App\Models\Church;
 use App\Models\Plan;
+use App\Support\Billing\Money;
 
 final class PlanCatalog
 {
     /**
-     * @return array{key: string, name: string, priceMinor: int, currencyCode: string, billingInterval: string, isFree: bool}|null
+     * @return array{key: string, name: string, price: string, currencyCode: string, billingInterval: string, isFree: bool}|null
      */
     public static function summary(?Plan $plan): ?array
     {
@@ -19,15 +20,15 @@ final class PlanCatalog
         return [
             'key' => $plan->key,
             'name' => $plan->name,
-            'priceMinor' => $plan->price_minor,
+            'price' => Money::format($plan->price),
             'currencyCode' => $plan->currency_code,
             'billingInterval' => $plan->billing_interval,
-            'isFree' => $plan->price_minor === 0,
+            'isFree' => Money::isZero($plan->price),
         ];
     }
 
     /**
-     * @return array{key: string, name: string, priceMinor: int, currencyCode: string, billingInterval: string, isFree: bool}|null
+     * @return array{key: string, name: string, price: string, currencyCode: string, billingInterval: string, isFree: bool}|null
      */
     public static function forChurch(Church $church): ?array
     {
@@ -39,7 +40,7 @@ final class PlanCatalog
      *     key: string,
      *     name: string,
      *     description: string,
-     *     priceMinor: int,
+     *     price: string,
      *     currencyCode: string,
      *     billingInterval: string,
      *     isFree: bool,
@@ -59,10 +60,10 @@ final class PlanCatalog
                 'key' => $plan->key,
                 'name' => $plan->name,
                 'description' => $plan->description ?? '',
-                'priceMinor' => $plan->price_minor,
+                'price' => Money::format($plan->price),
                 'currencyCode' => $plan->currency_code,
                 'billingInterval' => $plan->billing_interval,
-                'isFree' => $plan->price_minor === 0,
+                'isFree' => Money::isZero($plan->price),
                 'isCurrent' => $plan->key === $currentPlanKey,
                 'limits' => collect(PlanResources::keys())
                     ->mapWithKeys(fn (string $resource): array => [

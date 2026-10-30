@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { AdminLayout } from '@/layouts/admin-layout';
+import { formatMoney } from '@/lib/format';
 import type {
     AdminPlanFeature,
     AdminPlanOption,
@@ -70,14 +71,6 @@ const featureModeOptions: Array<{ value: string; label: string }> = [
     { value: 'enabled', label: 'Habilitar' },
     { value: 'disabled', label: 'Deshabilitar' },
 ];
-
-function formatPrice(priceMinor: number, currencyCode: string): string {
-    return new Intl.NumberFormat('es', {
-        style: 'currency',
-        currency: currencyCode,
-        maximumFractionDigits: 2,
-    }).format(priceMinor / 100);
-}
 
 function formatDate(value: string | null): string {
     if (!value) {
@@ -262,9 +255,9 @@ export default function AdminChurchPlan({
                                     {plans.map((plan) => (
                                         <option key={plan.id} value={plan.id}>
                                             {plan.name} ·{' '}
-                                            {plan.priceMinor === 0
+                                            {Number(plan.price) === 0
                                                 ? 'sin costo'
-                                                : `${formatPrice(plan.priceMinor, plan.currencyCode)}/mes`}
+                                                : `${formatMoney(plan.price, plan.currencyCode)}/mes`}
                                         </option>
                                     ))}
                                 </Select>

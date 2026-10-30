@@ -95,7 +95,7 @@ class PurgeArchivedChurchesCommandTest extends TestCase
             'number' => 'INV-PURGE-001',
             'status' => 'paid',
             'currency_code' => 'USD',
-            'amount_minor' => 5000,
+            'amount' => '50.00',
             'issued_at' => now()->subDays(20),
             'paid_at' => now()->subDays(15),
         ]);
@@ -103,7 +103,7 @@ class PurgeArchivedChurchesCommandTest extends TestCase
         $payment = Payment::create([
             'invoice_id' => $invoice->getKey(),
             'church_id' => $church->getKey(),
-            'amount_minor' => 5000,
+            'amount' => '50.00',
             'currency_code' => 'USD',
             'method' => 'transfer',
             'reference' => 'TRX-PURGE',

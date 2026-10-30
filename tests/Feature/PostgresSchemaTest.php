@@ -635,7 +635,7 @@ class PostgresSchemaTest extends TestCase
     {
         DB::table('contributions')->insert([
             'church_id' => $churchId,
-            'amount_minor' => $amount,
+            'amount' => $amount,
             'currency_code' => $currency,
             'method' => 'cash',
             'contributed_at' => now(),

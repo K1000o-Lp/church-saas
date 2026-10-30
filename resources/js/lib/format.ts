@@ -1,9 +1,9 @@
-export function formatMoneyMinor(amountMinor: number, currencyCode: string): string {
+export function formatMoney(amount: string | number, currencyCode: string): string {
     return new Intl.NumberFormat('es', {
         style: 'currency',
         currency: currencyCode,
         maximumFractionDigits: 2,
-    }).format(amountMinor / 100);
+    }).format(Number(amount));
 }
 
 export function formatDate(value: string | null): string {
@@ -30,4 +30,15 @@ export function dateInputValue(offsetDays = 0): string {
     date.setDate(date.getDate() + offsetDays);
 
     return date.toLocaleDateString('en-CA');
+}
+
+export function dateTimeInputValue(value: string | null): string {
+    if (!value) {
+        return '';
+    }
+
+    const date = new Date(value);
+    const pad = (part: number) => String(part).padStart(2, '0');
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }

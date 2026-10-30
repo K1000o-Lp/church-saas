@@ -11,7 +11,7 @@ class Plan extends Model
         'key',
         'name',
         'description',
-        'price_minor',
+        'price',
         'currency_code',
         'billing_interval',
         'sort_order',
@@ -21,7 +21,7 @@ class Plan extends Model
     protected function casts(): array
     {
         return [
-            'price_minor' => 'integer',
+            'price' => 'decimal:2',
             'sort_order' => 'integer',
             'is_active' => 'boolean',
         ];

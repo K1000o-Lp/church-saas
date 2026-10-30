@@ -36,7 +36,7 @@ class AdminChurchBillingTest extends TestCase
 
         $invoice = Invoice::query()->firstOrFail();
 
-        $this->assertSame(15050, $invoice->amount_minor);
+        $this->assertSame('150.50', $invoice->amount);
         $this->assertSame('USD', $invoice->currency_code);
         $this->assertSame('issued', $invoice->status);
         $this->assertSame($church->getKey(), $invoice->church_id);
@@ -71,7 +71,7 @@ class AdminChurchBillingTest extends TestCase
     {
         $admin = PlatformAdmin::factory()->create();
         $church = $this->createChurch('iglesia-pagos');
-        $invoice = $this->createInvoice($church, 15000);
+        $invoice = $this->createInvoice($church, '150.00');
 
         $this->actingAs($admin, 'platform')
             ->post(route('admin.invoices.payments.store', $invoice), [
@@ -86,10 +86,10 @@ class AdminChurchBillingTest extends TestCase
         $invoice->refresh();
         $this->assertSame('issued', $invoice->status);
         $this->assertNull($invoice->paid_at);
-        $this->assertSame(5000, $invoice->paidMinor());
+        $this->assertSame('50.00', $invoice->paidAmount());
         $this->assertDatabaseHas('payments', [
             'invoice_id' => $invoice->getKey(),
-            'amount_minor' => 5000,
+            'amount' => '50.00',
             'method' => 'transfer',
             'reference' => 'TRX-001',
             'notes' => 'Primer abono.',
@@ -107,8 +107,8 @@ class AdminChurchBillingTest extends TestCase
         $invoice->refresh();
         $this->assertSame('paid', $invoice->status);
         $this->assertNotNull($invoice->paid_at);
-        $this->assertSame(15000, $invoice->paidMinor());
-        $this->assertSame(0, $invoice->remainingMinor());
+        $this->assertSame('150.00', $invoice->paidAmount());
+        $this->assertSame('0.00', $invoice->remainingAmount());
         $this->assertSame(2, $invoice->payments()->count());
         $this->assertSame(
             2,
@@ -120,7 +120,7 @@ class AdminChurchBillingTest extends TestCase
     {
         $admin = PlatformAdmin::factory()->create();
         $church = $this->createChurch('iglesia-pago-excedido');
-        $invoice = $this->createInvoice($church, 5000);
+        $invoice = $this->createInvoice($church, '50.00');
 
         $this->actingAs($admin, 'platform')
             ->post(route('admin.invoices.payments.store', $invoice), [
@@ -153,7 +153,7 @@ class AdminChurchBillingTest extends TestCase
     {
         $admin = PlatformAdmin::factory()->create();
         $church = $this->createChurch('iglesia-estados-factura');
-        $invoice = $this->createInvoice($church, 10000, now()->subDay());
+        $invoice = $this->createInvoice($church, '100.00', now()->subDay());
 
         // Reading the billing screen persists the automatic issued -> overdue state.
         $this->actingAs($admin, 'platform')
@@ -195,8 +195,8 @@ class AdminChurchBillingTest extends TestCase
     {
         $admin = PlatformAdmin::factory()->create();
         $church = $this->createChurch('iglesia-pagada');
-        $invoice = $this->createInvoice($church, 3000);
-        $this->createPayment($invoice, 3000);
+        $invoice = $this->createInvoice($church, '30.00');
+        $this->createPayment($invoice, '30.00');
         $invoice->forceFill(['status' => 'paid', 'paid_at' => now()])->save();
 
         $this->actingAs($admin, 'platform')
@@ -213,7 +213,7 @@ class AdminChurchBillingTest extends TestCase
     {
         $admin = PlatformAdmin::factory()->create();
         $church = $this->createChurch('iglesia-archivada-factura', 'archived');
-        $invoice = $this->createInvoice($church, 4000);
+        $invoice = $this->createInvoice($church, '40.00');
 
         $this->actingAs($admin, 'platform')
             ->post(route('admin.churches.invoices.store', $church), [
@@ -255,8 +255,8 @@ class AdminChurchBillingTest extends TestCase
         $alpha = $this->createChurch('iglesia-listado-alpha');
         $beta = $this->createChurch('iglesia-listado-beta');
 
-        $issued = $this->createInvoice($alpha, 1000);
-        $paid = $this->createInvoice($beta, 2000);
+        $issued = $this->createInvoice($alpha, '10.00');
+        $paid = $this->createInvoice($beta, '20.00');
         $paid->forceFill(['status' => 'paid', 'paid_at' => now()])->save();
 
         $this->actingAs($admin, 'platform')
@@ -289,8 +289,8 @@ class AdminChurchBillingTest extends TestCase
         $alpha = $this->createChurch('iglesia-alpha-facturas');
         $beta = $this->createChurch('iglesia-beta-facturas');
 
-        $alphaInvoice = $this->createInvoice($alpha, 12000);
-        $betaInvoice = $this->createInvoice($beta, 9000);
+        $alphaInvoice = $this->createInvoice($alpha, '120.00');
+        $betaInvoice = $this->createInvoice($beta, '90.00');
 
         $alphaAdmin = $this->createMembership($alpha, 'admin');
         $alphaFinance = $this->createMembership($alpha, 'finance');
@@ -360,7 +360,7 @@ class AdminChurchBillingTest extends TestCase
         return $user;
     }
 
-    private function createInvoice(Church $church, int $amountMinor, mixed $dueAt = null): Invoice
+    private function createInvoice(Church $church, string $amount, mixed $dueAt = null): Invoice
     {
         return Invoice::create([
             'church_id' => $church->getKey(),
@@ -369,19 +369,19 @@ class AdminChurchBillingTest extends TestCase
             'number' => 'INV-TEST-'.uniqid(),
             'status' => 'issued',
             'currency_code' => 'USD',
-            'amount_minor' => $amountMinor,
+            'amount' => $amount,
             'description' => 'Suscripción',
             'issued_at' => now(),
             'due_at' => $dueAt ?? now()->addDays(10),
         ]);
     }
 
-    private function createPayment(Invoice $invoice, int $amountMinor): Payment
+    private function createPayment(Invoice $invoice, string $amount): Payment
     {
         return Payment::create([
             'invoice_id' => $invoice->getKey(),
             'church_id' => $invoice->church_id,
-            'amount_minor' => $amountMinor,
+            'amount' => $amount,
             'currency_code' => 'USD',
             'method' => 'transfer',
             'paid_at' => now(),

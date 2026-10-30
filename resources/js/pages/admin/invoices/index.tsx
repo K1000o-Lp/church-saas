@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { AdminLayout } from '@/layouts/admin-layout';
-import { formatDate, formatMoneyMinor } from '@/lib/format';
+import { formatDate, formatMoney } from '@/lib/format';
 import type {
     AdminInvoice,
     AdminPagination,
@@ -158,20 +158,20 @@ export default function AdminInvoicesIndex({
                                                 />
                                             </td>
                                             <td className="py-3 pr-4 text-right tabular-nums">
-                                                {formatMoneyMinor(
-                                                    invoice.amountMinor,
+                                                {formatMoney(
+                                                    invoice.amount,
                                                     invoice.currencyCode,
                                                 )}
                                             </td>
                                             <td className="py-3 pr-4 text-right tabular-nums">
-                                                {formatMoneyMinor(
-                                                    invoice.paidMinor,
+                                                {formatMoney(
+                                                    invoice.paid,
                                                     invoice.currencyCode,
                                                 )}
                                             </td>
                                             <td className="py-3 pr-4 text-right tabular-nums">
-                                                {formatMoneyMinor(
-                                                    invoice.remainingMinor,
+                                                {formatMoney(
+                                                    invoice.remaining,
                                                     invoice.currencyCode,
                                                 )}
                                             </td>

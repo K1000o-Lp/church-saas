@@ -3,7 +3,7 @@ import { CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { formatMoneyMinor } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 import type { AvailablePlan, PlanFeatureItem, PlanUsageItem } from '@/types';
 
 type Props = {
@@ -51,7 +51,7 @@ export function AvailablePlanCard({
                         'Gratis'
                     ) : (
                         <>
-                            {formatMoneyMinor(plan.priceMinor, plan.currencyCode)}
+                            {formatMoney(plan.price, plan.currencyCode)}
                             <span className="ml-1 text-sm font-normal text-muted-foreground">
                                 / {plan.billingInterval === 'year' ? 'año' : 'mes'}
                             </span>

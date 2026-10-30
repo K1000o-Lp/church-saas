@@ -136,7 +136,7 @@ class AdminChurchManagementTest extends TestCase
 
         $this->withChurchContext($church, function (): void {
             Contribution::create([
-                'amount_minor' => 1000,
+                'amount' => '10.00',
                 'currency_code' => 'VES',
                 'method' => 'cash',
                 'contributed_at' => now(),

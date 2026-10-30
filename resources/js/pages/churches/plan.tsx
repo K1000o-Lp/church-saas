@@ -20,7 +20,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { AppLayout } from '@/layouts/app-layout';
-import { formatDate, formatMoneyMinor } from '@/lib/format';
+import { formatDate, formatMoney } from '@/lib/format';
 import type { AvailablePlan, PageProps, PlanOverview } from '@/types';
 
 type Props = {
@@ -141,7 +141,7 @@ export default function ChurchPlan({
                             <p className="font-display text-2xl font-semibold">
                                 {plan.plan.isFree
                                     ? 'Gratis'
-                                    : `${formatMoneyMinor(plan.plan.priceMinor, plan.plan.currencyCode)} / ${plan.plan.billingInterval === 'year' ? 'año' : 'mes'}`}
+                                    : `${formatMoney(plan.plan.price, plan.plan.currencyCode)} / ${plan.plan.billingInterval === 'year' ? 'año' : 'mes'}`}
                             </p>
                         )}
 

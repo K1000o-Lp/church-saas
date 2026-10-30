@@ -20,7 +20,7 @@ final class PlanMatrix
      * @return array<string, array{
      *     name: string,
      *     description: string,
-     *     price_minor: int,
+     *     price: string,
      *     currency_code: string,
      *     billing_interval: string,
      *     sort_order: int,
@@ -35,7 +35,7 @@ final class PlanMatrix
             self::COMMUNITY => [
                 'name' => 'Comunidad',
                 'description' => 'Operación base para iglesias que inician su organización digital.',
-                'price_minor' => 0,
+                'price' => '0.00',
                 'currency_code' => 'USD',
                 'billing_interval' => 'month',
                 'sort_order' => 10,
@@ -54,7 +54,7 @@ final class PlanMatrix
             self::GROWTH => [
                 'name' => 'Crecimiento',
                 'description' => 'Equipos en expansión con multi-moneda, voluntarios y seguimiento pastoral.',
-                'price_minor' => 2900,
+                'price' => '29.00',
                 'currency_code' => 'USD',
                 'billing_interval' => 'month',
                 'sort_order' => 20,
@@ -77,7 +77,7 @@ final class PlanMatrix
             self::PRO => [
                 'name' => 'Ministerio Pro',
                 'description' => 'Operación avanzada con automatización, pagos y personalización de marca.',
-                'price_minor' => 7900,
+                'price' => '79.00',
                 'currency_code' => 'USD',
                 'billing_interval' => 'month',
                 'sort_order' => 30,
@@ -118,7 +118,7 @@ final class PlanMatrix
                     [
                         'name' => $data['name'],
                         'description' => $data['description'],
-                        'price_minor' => $data['price_minor'],
+                        'price' => $data['price'],
                         'currency_code' => $data['currency_code'],
                         'billing_interval' => $data['billing_interval'],
                         'sort_order' => $data['sort_order'],

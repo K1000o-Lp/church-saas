@@ -38,7 +38,7 @@ export default function AdminChurchInvoices({
 }: Props) {
     const outstanding = invoices
         .filter((invoice) => ['issued', 'overdue'].includes(invoice.status))
-        .reduce((total, invoice) => total + invoice.remainingMinor, 0);
+        .reduce((total, invoice) => total + Number(invoice.remaining), 0);
 
     return (
         <AdminLayout>
@@ -120,7 +120,7 @@ export default function AdminChurchInvoices({
                             style: 'currency',
                             currency: 'USD',
                             maximumFractionDigits: 2,
-                        }).format(outstanding / 100)}
+                        }).format(Number(outstanding))}
                     </p>
                 </div>
             </div>

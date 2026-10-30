@@ -12,7 +12,7 @@ class Payment extends Model
     protected $fillable = [
         'invoice_id',
         'church_id',
-        'amount_minor',
+        'amount',
         'currency_code',
         'method',
         'reference',
@@ -24,7 +24,7 @@ class Payment extends Model
     protected function casts(): array
     {
         return [
-            'amount_minor' => 'integer',
+            'amount' => 'decimal:2',
             'paid_at' => 'datetime',
         ];
     }
@@ -46,6 +46,6 @@ class Payment extends Model
 
     public function money(): string
     {
-        return Money::decimal($this->amount_minor);
+        return Money::format($this->amount);
     }
 }

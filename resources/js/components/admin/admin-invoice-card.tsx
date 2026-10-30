@@ -10,7 +10,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { formatDate, formatDateTime, formatMoneyMinor } from '@/lib/format';
+import { formatDate, formatDateTime, formatMoney } from '@/lib/format';
 import type { AdminInvoice, InvoiceStatusOption, PaymentMethodOption } from '@/types';
 
 type Props = {
@@ -33,10 +33,10 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 export function AdminInvoiceCard({ invoice, statuses, paymentMethods, canEdit }: Props) {
     const canAcceptPayments = ['issued', 'overdue'].includes(invoice.status);
-    const progress =
-        invoice.amountMinor === 0
-            ? 0
-            : Math.min(100, Math.round((invoice.paidMinor / invoice.amountMinor) * 100));
+    const amount = Number(invoice.amount);
+    const paid = Number(invoice.paid);
+    const remaining = Number(invoice.remaining);
+    const progress = amount === 0 ? 0 : Math.min(100, Math.round((paid / amount) * 100));
 
     return (
         <Card>
@@ -56,10 +56,10 @@ export function AdminInvoiceCard({ invoice, statuses, paymentMethods, canEdit }:
                     </div>
                     <div className="text-right">
                         <p className="font-display text-2xl font-semibold tabular-nums">
-                            {formatMoneyMinor(invoice.amountMinor, invoice.currencyCode)}
+                            {formatMoney(invoice.amount, invoice.currencyCode)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                            Pagado {formatMoneyMinor(invoice.paidMinor, invoice.currencyCode)}
+                            Pagado {formatMoney(invoice.paid, invoice.currencyCode)}
                         </p>
                     </div>
                 </div>
@@ -83,7 +83,7 @@ export function AdminInvoiceCard({ invoice, statuses, paymentMethods, canEdit }:
                     <p className="mt-1.5 text-xs text-muted-foreground">
                         Saldo pendiente{' '}
                         <strong className="text-foreground">
-                            {formatMoneyMinor(invoice.remainingMinor, invoice.currencyCode)}
+                            {formatMoney(invoice.remaining, invoice.currencyCode)}
                         </strong>
                     </p>
                 </div>
@@ -132,8 +132,8 @@ export function AdminInvoiceCard({ invoice, statuses, paymentMethods, canEdit }:
                                         <CreditCard className="mt-0.5 size-4 text-muted-foreground" />
                                         <div>
                                             <p className="text-sm font-semibold">
-                                                {formatMoneyMinor(
-                                                    payment.amountMinor,
+                                                {formatMoney(
+                                                    payment.amount,
                                                     payment.currencyCode,
                                                 )}{' '}
                                                 · {payment.methodLabel}
@@ -162,11 +162,11 @@ export function AdminInvoiceCard({ invoice, statuses, paymentMethods, canEdit }:
 
                 {canEdit && (
                     <div className="grid gap-4 xl:grid-cols-2">
-                        {canAcceptPayments && invoice.remainingMinor > 0 && (
+                        {canAcceptPayments && remaining > 0 && (
                             <InvoicePaymentForm
-                                key={`${invoice.id}-payment-${invoice.remainingMinor}`}
+                                key={`${invoice.id}-payment-${invoice.remaining}`}
                                 invoiceId={invoice.id}
-                                remainingMinor={invoice.remainingMinor}
+                                remaining={invoice.remaining}
                                 currencyCode={invoice.currencyCode}
                                 methods={paymentMethods}
                                 canEdit={canEdit}

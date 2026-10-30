@@ -125,7 +125,7 @@ resources/
 - Errores de validación llegan en `errors`; mostrarlos junto al campo.
 - Nunca exponer notas pastorales, montos de otras iglesias ni identificadores internos
   innecesarios en props compartidos.
-- Montos: enteros en unidad menor y código de moneda explícito; no usar `float` en UI.
+- Montos: decimales exactos `numeric(14,2)` con código de moneda explícito; no usar `float` para cálculo financiero.
 
 ## Pruebas y verificación
 
