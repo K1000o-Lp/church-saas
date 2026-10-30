@@ -21,6 +21,10 @@ enum Permission: string
     case PastoralView = 'pastoral.view';
     case PastoralManage = 'pastoral.manage';
 
+    case AppointmentsView = 'appointments.view';
+    case AppointmentsManage = 'appointments.manage';
+    case AppointmentsNotesView = 'appointments.notes.view';
+
     case EventsView = 'events.view';
     case EventsManage = 'events.manage';
     case AttendanceRecord = 'attendance.record';

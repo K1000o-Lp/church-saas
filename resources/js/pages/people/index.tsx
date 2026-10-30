@@ -36,6 +36,7 @@ const statusLabels: Record<string, string> = {
     active: 'Activa',
     inactive: 'Inactiva',
     archived: 'Archivada',
+    visitor: 'Visita',
 };
 
 export default function PeopleIndex({

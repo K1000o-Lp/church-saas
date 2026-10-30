@@ -19,6 +19,9 @@ final class RolePermissions
                 Permission::PeopleArchive,
                 Permission::PastoralView,
                 Permission::PastoralManage,
+                Permission::AppointmentsView,
+                Permission::AppointmentsManage,
+                Permission::AppointmentsNotesView,
                 Permission::EventsView,
                 Permission::EventsManage,
                 Permission::AttendanceRecord,
@@ -41,6 +44,9 @@ final class RolePermissions
 
             Role::Leader->value => [
                 Permission::PeopleView,
+                Permission::AppointmentsView,
+                Permission::AppointmentsManage,
+                Permission::AppointmentsNotesView,
                 Permission::EventsView,
                 Permission::EventsManage,
                 Permission::AttendanceRecord,

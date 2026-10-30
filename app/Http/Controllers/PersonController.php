@@ -4,15 +4,24 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePersonRequest;
 use App\Http\Requests\UpdatePersonRequest;
+use App\Models\Appointment;
 use App\Models\Church;
 use App\Models\CustomFieldDefinition;
 use App\Models\Person;
+use App\Models\PersonPipelineProgress;
+use App\Models\PersonRelationship;
+use App\Models\PipelineStage;
 use App\Models\Segment;
 use App\Support\Audit\DomainAudit;
+use App\Support\Auth\Permission;
 use App\Support\People\CustomFieldRegistry;
 use App\Support\People\CustomFieldType;
+use App\Support\People\RelationshipType;
+use App\Support\Plans\Entitlements;
+use App\Support\Plans\PlanFeatures;
 use App\Support\Segments\SegmentQuery;
 use App\Support\Segments\SegmentType;
+use App\Support\Tenancy\CurrentChurch;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,7 +39,7 @@ class PersonController extends Controller
 
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:80'],
-            'status' => ['nullable', 'string', Rule::in(['active', 'inactive', 'archived'])],
+            'status' => ['nullable', 'string', Rule::in(['active', 'inactive', 'archived', 'visitor'])],
             'segment' => ['nullable', 'integer'],
         ]);
 
@@ -88,6 +97,7 @@ class PersonController extends Controller
                 ['value' => 'active', 'label' => 'Activas'],
                 ['value' => 'inactive', 'label' => 'Inactivas'],
                 ['value' => 'archived', 'label' => 'Archivadas'],
+                ['value' => 'visitor', 'label' => 'Visitas'],
             ],
             'segments' => $this->segmentOptions($segment),
             'pagination' => [
@@ -192,6 +202,13 @@ class PersonController extends Controller
             ),
             'canUpdate' => Gate::allows('update', $record),
             'canArchive' => Gate::allows('archive', $record),
+            'canScheduleAppointment' => Gate::allows('create', Appointment::class),
+            'relationships' => $this->relationships($record),
+            'relationshipTypes' => RelationshipType::options(),
+            'relationshipPeople' => $this->relationshipPeople($record),
+            'canUpdateRelationships' => Gate::allows('update', $record),
+            'pipeline' => $this->canViewPipeline($church) ? $this->pipeline($record) : null,
+            'canManagePipeline' => $this->canManagePipeline($church),
         ]);
     }
 
@@ -341,6 +358,93 @@ class PersonController extends Controller
     /**
      * @return array<string, mixed>
      */
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function pipeline(Person $person): array
+    {
+        $progress = PersonPipelineProgress::query()
+            ->where('person_id', $person->getKey())
+            ->where('status', 'completed')
+            ->get()
+            ->keyBy('pipeline_stage_id');
+
+        return PipelineStage::query()
+            ->where('is_active', true)
+            ->orderBy('position')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (PipelineStage $stage): array => [
+                'id' => $stage->getKey(),
+                'name' => $stage->name,
+                'position' => $stage->position,
+                'completedAt' => $progress->get($stage->getKey())?->completed_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function canViewPipeline(Church $church): bool
+    {
+        return app(CurrentChurch::class)->allows(Permission::PastoralView)
+            && Entitlements::forChurch($church)->can(PlanFeatures::PASTORAL_PIPELINE);
+    }
+
+    private function canManagePipeline(Church $church): bool
+    {
+        return app(CurrentChurch::class)->allows(Permission::PastoralManage)
+            && Entitlements::forChurch($church)->can(PlanFeatures::PASTORAL_PIPELINE);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function relationships(Person $person): array
+    {
+        return PersonRelationship::query()
+            ->with('relatedPerson')
+            ->where('person_id', $person->getKey())
+            ->orderBy('relationship')
+            ->get()
+            ->map(fn (PersonRelationship $relationship): array => [
+                'id' => $relationship->getKey(),
+                'relatedPerson' => [
+                    'id' => $relationship->related_person_id,
+                    'fullName' => $relationship->relatedPerson === null
+                        ? null
+                        : trim($relationship->relatedPerson->first_name.' '.($relationship->relatedPerson->last_name ?? '')),
+                    'email' => $relationship->relatedPerson?->email,
+                ],
+                'relationship' => $relationship->relationship,
+                'relationshipLabel' => RelationshipType::tryFrom($relationship->relationship)?->label()
+                    ?? $relationship->relationship,
+                'isPrimary' => $relationship->is_primary,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function relationshipPeople(Person $person): array
+    {
+        return Person::query()
+            ->whereKeyNot($person->getKey())
+            ->where('status', '!=', 'archived')
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->limit(200)
+            ->get()
+            ->map(fn (Person $option): array => [
+                'id' => $option->getKey(),
+                'fullName' => trim($option->first_name.' '.($option->last_name ?? '')),
+                'email' => $option->email,
+            ])
+            ->values()
+            ->all();
+    }
+
     private function summary(Person $person, bool $detailed = false): array
     {
         $data = [
