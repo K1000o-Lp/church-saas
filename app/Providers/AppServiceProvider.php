@@ -44,6 +44,15 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('church-invitations', fn (Request $request): Limit => Limit::perHour(30)
             ->by('user:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
 
+        RateLimiter::for('public-registration', fn (Request $request): Limit => Limit::perHour(20)
+            ->by('ip:'.$request->ip()));
+
+        RateLimiter::for('public-receipt', fn (Request $request): Limit => Limit::perHour(10)
+            ->by('ip:'.$request->ip()));
+
+        RateLimiter::for('public-ticket', fn (Request $request): Limit => Limit::perHour(120)
+            ->by('ip:'.$request->ip()));
+
         RateLimiter::for('verification-send', fn (Request $request): Limit => Limit::perMinute(6)
             ->by('user:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
     }

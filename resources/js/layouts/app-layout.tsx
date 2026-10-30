@@ -1,5 +1,6 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import {
+    CalendarClock,
     CalendarDays,
     Church,
     Filter,
@@ -7,8 +8,10 @@ import {
     HeartHandshake,
     LayoutDashboard,
     LogOut,
+    Palette,
     Settings,
     Sparkles,
+    Target,
     Users,
     Wallet,
 } from 'lucide-react';
@@ -38,6 +41,14 @@ function buildPrimaryNav(currentChurch: CurrentChurch | null): NavItem[] {
             icon: Users,
         },
         {
+            label: 'Citas',
+            href:
+                churchPath && permissions.includes('appointments.view')
+                    ? `${churchPath}/appointments`
+                    : null,
+            icon: CalendarClock,
+        },
+        {
             label: 'Segmentos',
             href:
                 churchPath && permissions.includes('segments.view')
@@ -45,9 +56,25 @@ function buildPrimaryNav(currentChurch: CurrentChurch | null): NavItem[] {
                     : null,
             icon: Filter,
         },
-        { label: 'Eventos', href: null, icon: CalendarDays },
+        {
+            label: 'Eventos',
+            href:
+                churchPath && permissions.includes('events.view')
+                    ? `${churchPath}/events`
+                    : null,
+            icon: CalendarDays,
+        },
         { label: 'Finanzas', href: null, icon: Wallet },
-        { label: 'Servicios', href: null, icon: HeartHandshake },
+        {
+            label: 'Servicios',
+            href:
+                churchPath &&
+                permissions.includes('teams.view') &&
+                (currentChurch?.features ?? []).includes('volunteers')
+                    ? `${churchPath}/services`
+                    : null,
+            icon: HeartHandshake,
+        },
     ];
 }
 
@@ -77,6 +104,30 @@ function buildSecondaryNav(currentChurch: CurrentChurch | null): NavItem[] {
             label: 'Auditoría',
             href: `${churchPath}/settings/audit`,
             icon: Settings,
+        });
+    }
+
+    if (
+        churchPath &&
+        permissions.includes('pastoral.manage') &&
+        (currentChurch?.features ?? []).includes('pastoral_pipeline')
+    ) {
+        items.push({
+            label: 'Crecimiento',
+            href: `${churchPath}/settings/pipeline`,
+            icon: Target,
+        });
+    }
+
+    if (
+        churchPath &&
+        permissions.includes('church.settings.manage') &&
+        (currentChurch?.features ?? []).includes('white_label')
+    ) {
+        items.push({
+            label: 'Marca',
+            href: `${churchPath}/settings/branding`,
+            icon: Palette,
         });
     }
 
@@ -159,7 +210,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
     const mobileNav: NavItem[] = [
         { label: 'Panel', href: '/dashboard', icon: LayoutDashboard },
         { label: 'Iglesia', href: churchHref, icon: Church },
-        { label: 'Finanzas', href: null, icon: Wallet },
+        { label: 'Citas', href: currentChurch && currentChurch.permissions.includes('appointments.view') ? `${churchHref}/appointments` : null, icon: CalendarClock },
         { label: 'Ajustes', href: null, icon: Settings },
     ];
 

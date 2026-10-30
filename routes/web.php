@@ -4,6 +4,8 @@ use App\Http\Controllers\Admin\AdminSessionController;
 use App\Http\Controllers\Admin\ChurchController as AdminChurchController;
 use App\Http\Controllers\Admin\ChurchPlanController as AdminChurchPlanController;
 use App\Http\Controllers\Admin\InvoiceController as AdminInvoiceController;
+use App\Http\Controllers\AppointmentController;
+use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
@@ -12,6 +14,7 @@ use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\ChurchAuditController;
+use App\Http\Controllers\ChurchBrandingController;
 use App\Http\Controllers\ChurchController;
 use App\Http\Controllers\ChurchInvitationController;
 use App\Http\Controllers\ChurchMemberController;
@@ -19,9 +22,23 @@ use App\Http\Controllers\ChurchOnboardingController;
 use App\Http\Controllers\ChurchPlanController;
 use App\Http\Controllers\CustomFieldDefinitionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EventCheckInController;
+use App\Http\Controllers\EventController;
+use App\Http\Controllers\EventRegistrationController;
 use App\Http\Controllers\InvitationAcceptanceController;
+use App\Http\Controllers\MinistryTeamController;
+use App\Http\Controllers\PaymentReceiptController;
 use App\Http\Controllers\PersonController;
+use App\Http\Controllers\PersonPipelineController;
+use App\Http\Controllers\PersonRelationshipController;
+use App\Http\Controllers\PipelineStageController;
+use App\Http\Controllers\PublicChurchController;
+use App\Http\Controllers\PublicReceiptController;
+use App\Http\Controllers\PublicTicketController;
 use App\Http\Controllers\SegmentController;
+use App\Http\Controllers\ServiceItemController;
+use App\Http\Controllers\ServicePlanController;
+use App\Http\Controllers\VolunteerAssignmentController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -30,6 +47,21 @@ Route::get('/', function () {
         ? redirect()->route('dashboard')
         : redirect()->route('login');
 })->name('home');
+
+Route::get('/iglesias/{church}', [PublicChurchController::class, 'show'])->name('public.church');
+Route::get('/iglesias/{church}/eventos/{eventSlug}', [PublicChurchController::class, 'event'])->name('public.event');
+Route::post('/iglesias/{church}/eventos/{eventSlug}/registro', [PublicChurchController::class, 'register'])
+    ->middleware('throttle:public-registration')
+    ->name('public.event.register');
+Route::get('/comprobantes/{token}', [PublicReceiptController::class, 'show'])
+    ->middleware('throttle:public-receipt')
+    ->name('public.receipt.show');
+Route::post('/comprobantes/{token}', [PublicReceiptController::class, 'store'])
+    ->middleware('throttle:public-receipt')
+    ->name('public.receipt.store');
+Route::get('/entradas/{token}', [PublicTicketController::class, 'show'])
+    ->middleware('throttle:public-ticket')
+    ->name('public.ticket.show');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
@@ -110,6 +142,36 @@ Route::middleware('auth')->group(function (): void {
                 ->name('people.edit');
             Route::put('/churches/{church}/people/{person}', [PersonController::class, 'update'])
                 ->name('people.update');
+            Route::post('/churches/{church}/people/{person}/relationships', [PersonRelationshipController::class, 'store'])
+                ->name('people.relationships.store');
+            Route::delete('/churches/{church}/people/{person}/relationships/{relationship}', [PersonRelationshipController::class, 'destroy'])
+                ->name('people.relationships.destroy');
+        });
+
+        Route::middleware(['church', 'permission:appointments.view'])->group(function (): void {
+            Route::get('/churches/{church}/appointments', [AppointmentController::class, 'index'])
+                ->name('appointments.index');
+            Route::get('/churches/{church}/appointments/{appointment}', [AppointmentController::class, 'show'])
+                ->whereNumber('appointment')->name('appointments.show');
+        });
+
+        Route::middleware(['church', 'permission:appointments.manage'])->group(function (): void {
+            Route::get('/churches/{church}/appointments/create', [AppointmentController::class, 'create'])
+                ->name('appointments.create');
+            Route::post('/churches/{church}/appointments', [AppointmentController::class, 'store'])
+                ->name('appointments.store');
+            Route::get('/churches/{church}/appointments/{appointment}/edit', [AppointmentController::class, 'edit'])
+                ->whereNumber('appointment')->name('appointments.edit');
+            Route::put('/churches/{church}/appointments/{appointment}', [AppointmentController::class, 'update'])
+                ->whereNumber('appointment')->name('appointments.update');
+            Route::patch('/churches/{church}/appointments/{appointment}/complete', [AppointmentController::class, 'complete'])
+                ->whereNumber('appointment')->name('appointments.complete');
+            Route::patch('/churches/{church}/appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])
+                ->whereNumber('appointment')->name('appointments.cancel');
+            Route::patch('/churches/{church}/appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule'])
+                ->whereNumber('appointment')->name('appointments.reschedule');
+            Route::patch('/churches/{church}/appointments/{appointment}/no-show', [AppointmentController::class, 'noShow'])
+                ->whereNumber('appointment')->name('appointments.no-show');
         });
 
         Route::middleware(['church', 'permission:people.archive'])->group(function (): void {
@@ -130,6 +192,29 @@ Route::middleware('auth')->group(function (): void {
                 ->name('custom-fields.toggle');
         });
 
+        Route::middleware(['church', 'permission:pastoral.view', 'plan.feature:pastoral_pipeline'])->group(function (): void {
+            Route::get('/churches/{church}/settings/pipeline', [PipelineStageController::class, 'index'])
+                ->name('pipeline.index');
+        });
+
+        Route::middleware(['church', 'permission:pastoral.manage', 'plan.feature:pastoral_pipeline'])->group(function (): void {
+            Route::post('/churches/{church}/settings/pipeline', [PipelineStageController::class, 'store'])
+                ->name('pipeline.store');
+            Route::put('/churches/{church}/settings/pipeline/{stage}', [PipelineStageController::class, 'update'])
+                ->whereNumber('stage')->name('pipeline.update');
+            Route::post('/churches/{church}/people/{person}/pipeline/{stage}', [PersonPipelineController::class, 'complete'])
+                ->whereNumber('person')->whereNumber('stage')->name('people.pipeline.complete');
+            Route::delete('/churches/{church}/people/{person}/pipeline/{stage}', [PersonPipelineController::class, 'reopen'])
+                ->whereNumber('person')->whereNumber('stage')->name('people.pipeline.reopen');
+        });
+
+        Route::middleware(['church', 'permission:church.settings.manage', 'plan.feature:white_label'])->group(function (): void {
+            Route::get('/churches/{church}/settings/branding', [ChurchBrandingController::class, 'edit'])
+                ->name('churches.branding.edit');
+            Route::post('/churches/{church}/settings/branding', [ChurchBrandingController::class, 'update'])
+                ->name('churches.branding.update');
+        });
+
         Route::get('/churches/{church}/settings/audit', [ChurchAuditController::class, 'index'])
             ->middleware(['church', 'permission:church.audit.view'])
             ->name('churches.audit.index');
@@ -137,6 +222,57 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/churches/{church}/segments/create', [SegmentController::class, 'create'])
             ->middleware(['church', 'permission:segments.manage'])
             ->name('segments.create');
+
+        Route::middleware(['church', 'permission:events.view'])->group(function (): void {
+            Route::get('/churches/{church}/events', [EventController::class, 'index'])
+                ->name('events.index');
+            Route::get('/churches/{church}/events/{event}', [EventController::class, 'show'])
+                ->whereNumber('event')->name('events.show');
+            Route::get('/churches/{church}/events/{event}/registrations', [EventRegistrationController::class, 'index'])
+                ->whereNumber('event')->name('events.registrations.index');
+            Route::get('/churches/{church}/events/{event}/attendance', [AttendanceController::class, 'index'])
+                ->whereNumber('event')->name('events.attendance.index');
+        });
+
+        Route::middleware(['church', 'permission:events.manage'])->group(function (): void {
+            Route::get('/churches/{church}/events/create', [EventController::class, 'create'])
+                ->name('events.create');
+            Route::post('/churches/{church}/events', [EventController::class, 'store'])
+                ->name('events.store');
+            Route::get('/churches/{church}/events/{event}/edit', [EventController::class, 'edit'])
+                ->whereNumber('event')->name('events.edit');
+            Route::put('/churches/{church}/events/{event}', [EventController::class, 'update'])
+                ->whereNumber('event')->name('events.update');
+            Route::patch('/churches/{church}/events/{event}/publish', [EventController::class, 'publish'])
+                ->whereNumber('event')->name('events.publish');
+            Route::patch('/churches/{church}/events/{event}/cancel', [EventController::class, 'cancel'])
+                ->whereNumber('event')->name('events.cancel');
+            Route::patch('/churches/{church}/events/{event}/complete', [EventController::class, 'complete'])
+                ->whereNumber('event')->name('events.complete');
+            Route::post('/churches/{church}/events/{event}/registrations', [EventRegistrationController::class, 'store'])
+                ->whereNumber('event')->name('events.registrations.store');
+            Route::patch('/churches/{church}/events/{event}/registrations/{registration}', [EventRegistrationController::class, 'updateStatus'])
+                ->whereNumber('event')->name('events.registrations.update');
+            Route::delete('/churches/{church}/events/{event}/registrations/{registration}', [EventRegistrationController::class, 'destroy'])
+                ->whereNumber('event')->name('events.registrations.destroy');
+            Route::get('/churches/{church}/events/{event}/receipts', [PaymentReceiptController::class, 'index'])
+                ->whereNumber('event')->name('events.receipts.index');
+            Route::patch('/churches/{church}/events/{event}/receipts/{receipt}/verify', [PaymentReceiptController::class, 'verify'])
+                ->whereNumber('event')->name('events.receipts.verify');
+            Route::patch('/churches/{church}/events/{event}/receipts/{receipt}/reject', [PaymentReceiptController::class, 'reject'])
+                ->whereNumber('event')->name('events.receipts.reject');
+            Route::get('/churches/{church}/events/{event}/receipts/{receipt}/download', [PaymentReceiptController::class, 'download'])
+                ->whereNumber('event')->name('events.receipts.download');
+        });
+
+        Route::middleware(['church', 'permission:attendance.record'])->group(function (): void {
+            Route::post('/churches/{church}/events/{event}/attendance', [AttendanceController::class, 'store'])
+                ->whereNumber('event')->name('events.attendance.store');
+            Route::get('/churches/{church}/events/{event}/check-in', [EventCheckInController::class, 'index'])
+                ->whereNumber('event')->name('events.check-in.index');
+            Route::post('/churches/{church}/events/{event}/check-in', [EventCheckInController::class, 'store'])
+                ->whereNumber('event')->name('events.check-in.store');
+        });
 
         Route::middleware(['church', 'permission:segments.view'])->group(function (): void {
             Route::get('/churches/{church}/segments', [SegmentController::class, 'index'])
@@ -162,6 +298,53 @@ Route::middleware('auth')->group(function (): void {
                 ->name('segments.members.store');
             Route::delete('/churches/{church}/segments/{segment}/members/{person}', [SegmentController::class, 'destroyMember'])
                 ->name('segments.members.destroy');
+        });
+
+        Route::middleware(['church', 'plan.feature:volunteers', 'permission:teams.view'])->group(function (): void {
+            Route::get('/churches/{church}/services', [ServicePlanController::class, 'index'])
+                ->name('services.index');
+            Route::get('/churches/{church}/services/teams', [MinistryTeamController::class, 'index'])
+                ->name('services.teams');
+            Route::get('/churches/{church}/services/{service}', [ServicePlanController::class, 'show'])
+                ->whereNumber('service')->name('services.show');
+        });
+
+        Route::middleware(['church', 'plan.feature:volunteers', 'permission:teams.manage'])->group(function (): void {
+            Route::get('/churches/{church}/services/create', [ServicePlanController::class, 'create'])
+                ->name('services.create');
+            Route::post('/churches/{church}/services', [ServicePlanController::class, 'store'])
+                ->name('services.store');
+            Route::get('/churches/{church}/services/{service}/edit', [ServicePlanController::class, 'edit'])
+                ->whereNumber('service')->name('services.edit');
+            Route::put('/churches/{church}/services/{service}', [ServicePlanController::class, 'update'])
+                ->whereNumber('service')->name('services.update');
+            Route::patch('/churches/{church}/services/{service}/publish', [ServicePlanController::class, 'publish'])
+                ->whereNumber('service')->name('services.publish');
+            Route::patch('/churches/{church}/services/{service}/cancel', [ServicePlanController::class, 'cancel'])
+                ->whereNumber('service')->name('services.cancel');
+            Route::patch('/churches/{church}/services/{service}/complete', [ServicePlanController::class, 'complete'])
+                ->whereNumber('service')->name('services.complete');
+
+            Route::post('/churches/{church}/services/{service}/items', [ServiceItemController::class, 'store'])
+                ->whereNumber('service')->name('services.items.store');
+            Route::put('/churches/{church}/services/{service}/items/{item}', [ServiceItemController::class, 'update'])
+                ->whereNumber('service')->whereNumber('item')->name('services.items.update');
+            Route::delete('/churches/{church}/services/{service}/items/{item}', [ServiceItemController::class, 'destroy'])
+                ->whereNumber('service')->whereNumber('item')->name('services.items.destroy');
+
+            Route::post('/churches/{church}/services/teams', [MinistryTeamController::class, 'store'])
+                ->name('services.teams.store');
+            Route::put('/churches/{church}/services/teams/{team}', [MinistryTeamController::class, 'update'])
+                ->whereNumber('team')->name('services.teams.update');
+        });
+
+        Route::middleware(['church', 'plan.feature:volunteers', 'permission:volunteers.manage'])->group(function (): void {
+            Route::post('/churches/{church}/services/{service}/items/{item}/assignments', [VolunteerAssignmentController::class, 'store'])
+                ->whereNumber('service')->whereNumber('item')->name('services.assignments.store');
+            Route::patch('/churches/{church}/services/{service}/items/{item}/assignments/{assignment}', [VolunteerAssignmentController::class, 'updateStatus'])
+                ->whereNumber('service')->whereNumber('item')->whereNumber('assignment')->name('services.assignments.update');
+            Route::delete('/churches/{church}/services/{service}/items/{item}/assignments/{assignment}', [VolunteerAssignmentController::class, 'destroy'])
+                ->whereNumber('service')->whereNumber('item')->whereNumber('assignment')->name('services.assignments.destroy');
         });
 
         Route::middleware(['church', 'permission:church.members.manage'])->group(function (): void {

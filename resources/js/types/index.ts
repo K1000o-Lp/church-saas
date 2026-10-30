@@ -7,7 +7,7 @@ export type User = {
 export type CurrentPlanSummary = {
     key: string;
     name: string;
-    priceMinor: number;
+    price: string;
     currencyCode: string;
     billingInterval: string;
     isFree: boolean;
@@ -23,6 +23,7 @@ export type CurrentChurch = {
     roleLabel: string;
     permissions: string[];
     plan: CurrentPlanSummary | null;
+    features: string[];
 };
 
 export type Flash = {
@@ -94,6 +95,280 @@ export type Pagination = {
     nextPageUrl: string | null;
 };
 
+export type PublicChurchBranding = {
+    name: string;
+    slug: string;
+    tagline: string | null;
+    primaryColor: string | null;
+    accentColor: string | null;
+    serviceTimes: string | null;
+    logoUrl: string | null;
+};
+
+export type PaymentReceiptSummary = {
+    id: number;
+    amount: string;
+    currencyCode: string;
+    referenceNumber: string | null;
+    status: 'pending' | 'verified' | 'rejected';
+    submittedAt: string | null;
+    rejectionReason: string | null;
+};
+
+export type AdminPaymentReceipt = PaymentReceiptSummary & {
+    registrationId: number;
+    person: {
+        id: number;
+        fullName: string;
+        email: string | null;
+    } | null;
+    guestName: string | null;
+    verifiedAt: string | null;
+};
+
+export type PublicEventSummary = {
+    id: number;
+    title: string;
+    slug: string | null;
+    startsAt: string | null;
+    location: string | null;
+    isPaid: boolean;
+    price: string | null;
+    currencyCode: string | null;
+};
+
+export type PublicEventDetail = PublicEventSummary & {
+    description: string | null;
+    endsAt: string | null;
+    capacity: number | null;
+    occupied: number;
+    spotsLeft: number | null;
+    isFull: boolean;
+    registrationIsOpen: boolean;
+};
+
+export type ChurchBrandingSettings = {
+    tagline: string | null;
+    primaryColor: string | null;
+    accentColor: string | null;
+    serviceTimes: string | null;
+    logoPath: string | null;
+    logoUrl: string | null;
+};
+
+export type ServiceStatusValue = 'draft' | 'published' | 'completed' | 'cancelled';
+
+export type ServiceStatusOption = {
+    value: ServiceStatusValue;
+    label: string;
+};
+
+export type ServicePlanSummary = {
+    id: number;
+    title: string;
+    startsAt: string | null;
+    endsAt: string | null;
+    location: string | null;
+    status: ServiceStatusValue;
+    statusLabel: string;
+    itemsCount: number;
+};
+
+export type ServicePlanDetail = ServicePlanSummary;
+
+export type MinistryTeamSummary = {
+    id: number;
+    name: string;
+    description: string | null;
+    isActive: boolean;
+    itemsCount: number;
+};
+
+export type MinistryTeamOption = {
+    id: number;
+    name: string;
+};
+
+export type VolunteerAssignmentSummary = {
+    id: number;
+    person: {
+        id: number;
+        fullName: string;
+    } | null;
+    role: string | null;
+    status: 'invited' | 'confirmed' | 'declined' | 'cancelled';
+    statusLabel: string;
+};
+
+export type ServiceItemSummary = {
+    id: number;
+    title: string;
+    position: number;
+    notes: string | null;
+    team: MinistryTeamOption | null;
+    assignments: VolunteerAssignmentSummary[];
+};
+
+export type AssignmentStatusOption = {
+    value: 'invited' | 'confirmed' | 'declined' | 'cancelled';
+    label: string;
+};
+
+export type PipelineStageSummary = {
+    id: number;
+    name: string;
+    position: number;
+    isActive: boolean;
+    completedCount: number;
+};
+
+export type PersonPipelineStage = {
+    id: number;
+    name: string;
+    position: number;
+    completedAt: string | null;
+};
+
+export type EventStatusValue = 'draft' | 'published' | 'cancelled' | 'completed';
+
+export type EventStatusOption = {
+    value: EventStatusValue;
+    label: string;
+};
+
+export type EventCurrencyOption = {
+    code: string;
+    isDefault: boolean;
+};
+
+export type EventSummary = {
+    id: number;
+    title: string;
+    slug: string | null;
+    status: EventStatusValue;
+    statusLabel: string;
+    startsAt: string | null;
+    endsAt: string | null;
+    location: string | null;
+    capacity: number | null;
+    occupied: number;
+    registrationsCount: number;
+    isPublic: boolean;
+    isPaid: boolean;
+    price: string | null;
+    currencyCode: string | null;
+};
+
+export type EventDetail = EventSummary & {
+    description: string | null;
+    timezone: string | null;
+    registrationOpensAt: string | null;
+    registrationClosesAt: string | null;
+    isFull: boolean;
+    registrationIsOpen: boolean;
+};
+
+export type RegistrationStatusValue =
+    | 'registered'
+    | 'confirmed'
+    | 'declined'
+    | 'waitlisted'
+    | 'cancelled';
+
+export type RegistrationStatusOption = {
+    value: RegistrationStatusValue;
+    label: string;
+};
+
+export type EventRegistrationSummary = {
+    id: number;
+    person: {
+        id: number;
+        fullName: string;
+        email: string | null;
+    } | null;
+    guestName: string | null;
+    guestCount: number;
+    status: RegistrationStatusValue;
+    statusLabel: string;
+    paymentStatus: string;
+    paymentStatusLabel: string;
+    respondedAt: string | null;
+};
+
+export type AttendanceStatusOption = {
+    value: 'present' | 'absent' | 'late' | 'excused';
+    label: string;
+};
+
+export type AttendanceRow = {
+    id: number;
+    person: {
+        id: number;
+        fullName: string;
+    } | null;
+    guestName: string | null;
+    guestCount: number;
+    status: RegistrationStatusValue;
+    statusLabel: string;
+    attendanceStatus: 'present' | 'absent' | 'late' | 'excused' | null;
+    attendanceStatusLabel: string | null;
+};
+
+export type AppointmentStatusValue =
+    | 'scheduled'
+    | 'rescheduled'
+    | 'completed'
+    | 'cancelled'
+    | 'no_show';
+
+export type AppointmentStatusOption = {
+    value: AppointmentStatusValue;
+    label: string;
+};
+
+export type AppointmentPersonSummary = {
+    id: number;
+    fullName: string;
+    email: string | null;
+    phone?: string | null;
+};
+
+export type AppointmentSummary = {
+    id: number;
+    person: AppointmentPersonSummary | null;
+    host: {
+        id: number;
+        name: string | null;
+    };
+    scheduledAt: string | null;
+    durationMinutes: number;
+    status: AppointmentStatusValue;
+    statusLabel: string;
+    subject: string | null;
+};
+
+export type AppointmentDetail = AppointmentSummary & {
+    notes: string | null;
+    cancellationReason: string | null;
+    completedAt: string | null;
+    cancelledAt: string | null;
+    createdAt: string | null;
+};
+
+export type AppointmentPersonOption = {
+    id: number;
+    fullName: string;
+    email: string | null;
+};
+
+export type AppointmentHostOption = {
+    id: number;
+    name: string | null;
+    email: string | null;
+    role: string;
+};
+
 export type PersonSummary = {
     id: number;
     firstName: string;
@@ -104,6 +379,29 @@ export type PersonSummary = {
     status: string;
     createdAt?: string | null;
     updatedAt?: string | null;
+};
+
+export type PersonRelationshipSummary = {
+    id: number;
+    relatedPerson: {
+        id: number;
+        fullName: string | null;
+        email: string | null;
+    };
+    relationship: string;
+    relationshipLabel: string;
+    isPrimary: boolean;
+};
+
+export type RelationshipTypeOption = {
+    value: string;
+    label: string;
+};
+
+export type PersonOption = {
+    id: number;
+    fullName: string;
+    email: string | null;
 };
 
 export type CustomFieldTypeValue =
@@ -226,7 +524,7 @@ export type PlanSummary = {
     key: string;
     name: string;
     description: string | null;
-    priceMinor: number;
+    price: string;
     currencyCode: string;
     billingInterval: string;
     isFree: boolean;
@@ -283,7 +581,7 @@ export type AdminPlanOption = {
     key: string;
     name: string;
     description: string | null;
-    priceMinor: number;
+    price: string;
     currencyCode: string;
     billingInterval: string;
     limits: Record<string, number | null>;
@@ -338,7 +636,7 @@ export type PaymentMethodOption = {
 
 export type InvoicePayment = {
     id: number;
-    amountMinor: number;
+    amount: string;
     currencyCode: string;
     method: PaymentMethodValue;
     methodLabel: string;
@@ -354,9 +652,9 @@ export type ChurchInvoice = {
     status: InvoiceStatusValue;
     statusLabel: string;
     currencyCode: string;
-    amountMinor: number;
-    paidMinor: number;
-    remainingMinor: number;
+    amount: string;
+    paid: string;
+    remaining: string;
     description: string | null;
     notes: string | null;
     issuedAt: string | null;

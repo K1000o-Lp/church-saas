@@ -49,6 +49,78 @@ final class DomainAudit
 
     public const PLAN_CHANGED = 'plan.changed';
 
+    public const CHURCH_BRANDING_UPDATED = 'church.branding_updated';
+
+    public const PERSON_RELATIONSHIP_ADDED = 'person.relationship_added';
+
+    public const PERSON_RELATIONSHIP_REMOVED = 'person.relationship_removed';
+
+    public const APPOINTMENT_CREATED = 'appointment.created';
+
+    public const APPOINTMENT_UPDATED = 'appointment.updated';
+
+    public const APPOINTMENT_COMPLETED = 'appointment.completed';
+
+    public const APPOINTMENT_CANCELLED = 'appointment.cancelled';
+
+    public const APPOINTMENT_RESCHEDULED = 'appointment.rescheduled';
+
+    public const APPOINTMENT_NO_SHOW = 'appointment.no_show';
+
+    public const EVENT_CREATED = 'event.created';
+
+    public const EVENT_UPDATED = 'event.updated';
+
+    public const EVENT_PUBLISHED = 'event.published';
+
+    public const EVENT_CANCELLED = 'event.cancelled';
+
+    public const EVENT_COMPLETED = 'event.completed';
+
+    public const REGISTRATION_CREATED = 'registration.created';
+
+    public const REGISTRATION_STATUS_CHANGED = 'registration.status_changed';
+
+    public const ATTENDANCE_RECORDED = 'attendance.recorded';
+
+    public const TEAM_CREATED = 'team.created';
+
+    public const TEAM_UPDATED = 'team.updated';
+
+    public const SERVICE_CREATED = 'service.created';
+
+    public const SERVICE_UPDATED = 'service.updated';
+
+    public const SERVICE_PUBLISHED = 'service.published';
+
+    public const SERVICE_CANCELLED = 'service.cancelled';
+
+    public const SERVICE_COMPLETED = 'service.completed';
+
+    public const SERVICE_ITEM_CREATED = 'service.item_created';
+
+    public const SERVICE_ITEM_UPDATED = 'service.item_updated';
+
+    public const SERVICE_ITEM_DELETED = 'service.item_deleted';
+
+    public const VOLUNTEER_ASSIGNED = 'volunteer.assigned';
+
+    public const VOLUNTEER_STATUS_CHANGED = 'volunteer.status_changed';
+
+    public const PIPELINE_STAGE_CREATED = 'pipeline.stage_created';
+
+    public const PIPELINE_STAGE_UPDATED = 'pipeline.stage_updated';
+
+    public const PIPELINE_STAGE_COMPLETED = 'pipeline.stage_completed';
+
+    public const PIPELINE_STAGE_REOPENED = 'pipeline.stage_reopened';
+
+    public const RECEIPT_SUBMITTED = 'receipt.submitted';
+
+    public const RECEIPT_VERIFIED = 'receipt.verified';
+
+    public const RECEIPT_REJECTED = 'receipt.rejected';
+
     /**
      * @param  array<string, mixed>  $metadata
      */
