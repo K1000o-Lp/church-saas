@@ -97,18 +97,23 @@ Las acciones sensibles de dominio se registran en `church_audit_entries` con act
 
 ## Checklist de producción
 
+El detalle, las carencias pendientes y los pasos para Laravel Cloud están en
+[Preparación de producción](docs/production-readiness.md). Resumen:
+
 - `APP_DEBUG=false` y `APP_ENV=production`.
-- `SESSION_DRIVER=database` y `SESSION_SECURE_COOKIE=true` con HTTPS.
+- `SESSION_DRIVER=database`, `CACHE_STORE=database` y `SESSION_SECURE_COOKIE=true` con HTTPS.
 - Configurar un mailer real: sin verificación de correo los usuarios nuevos no completan el onboarding.
-- Definir `TRUSTED_PROXIES` si la aplicación está detrás de un balanceador o proxy.
+- Definir `TRUSTED_PROXIES` si la aplicación está detrás de un balanceador o proxy ajeno a Laravel Cloud.
 - Ejecutar la cola con un driver durable si se añaden jobs; las invitaciones actuales se envían de forma síncrona.
-- Ejecutar `php artisan storage:link` para servir logos del portal público.
+- En Laravel Cloud, usar Object Storage para los discos `local` (comprobantes privados) y `public`
+  (logos). No ejecutar `php artisan storage:link` allí.
 - Los comprobantes de pago se guardan en el disco privado `local` y se descargan solo con autorización.
 - MFA para cuentas de plataforma queda pendiente como endurecimiento separado.
 
 ## Navegación
 
 - [Plan de implementación](docs/implementation-plan.md): fases, dependencias, entregables y criterios para avanzar.
+- [Preparación de producción](docs/production-readiness.md): carencias, prioridades y despliegue en Laravel Cloud.
 - [Visión de arquitectura](docs/architecture/overview.md): alcance, tenancy, seguridad, operación y decisiones pendientes.
 - [Frontend](docs/architecture/frontend.md): Inertia + React, contrato de props, sistema de diseño, accesibilidad y verificación.
 - [Modelo de datos](docs/architecture/data-model.md): entidades y relaciones persistidas por las migraciones iniciales, con decisiones todavía abiertas.
